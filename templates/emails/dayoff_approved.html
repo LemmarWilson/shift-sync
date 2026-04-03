@@ -1,0 +1,27 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<h2 style="color: #1f2937; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+    Day-Off Request Approved
+</h2>
+
+<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
+    Great news! Your day-off request has been approved.
+</p>
+
+<div style="background: #f9fafb; border-left: 4px solid #22c55e; padding: 16px; margin: 0 0 24px 0; border-radius: 0 8px 8px 0;">
+    <p style="color: #1f2937; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">
+        Approved Time Off
+    </p>
+    <p style="color: #4b5563; font-size: 14px; margin: 0 0 4px 0;">
+        <strong>Dates:</strong> {{ start_date|date:"l, F j" }}{% if start_date != end_date %} - {{ end_date|date:"l, F j, Y" }}{% else %}, {{ start_date|date:"Y" }}{% endif %}
+    </p>
+    <p style="color: #4b5563; font-size: 14px; margin: 0;">
+        <strong>Approved by:</strong> {{ reviewer_name }}
+    </p>
+</div>
+
+<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">
+    Enjoy your time off!
+</p>
+{% endblock %}

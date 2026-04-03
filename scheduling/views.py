@@ -15,11 +15,12 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views import View
-from django.views.generic import CreateView, DeleteView, DetailView, TemplateView, UpdateView
+from django.utils import timezone
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView
 
-from .forms import ShiftForm
+from .forms import DayOffRequestForm, ShiftForm
 from .mixins import ManagerRequiredMixin
-from .models import Department, Shift, User
+from .models import DayOffRequest, Department, Shift, User
 from .services import CalendarService, EmailService
 
 
@@ -681,3 +682,308 @@ class ShiftPublishToggleView(ManagerRequiredMixin, View):
         response = HttpResponse(html)
         response['HX-Trigger'] = 'closeModal, shiftUpdated'
         return response
+
+
+# =============================================================================
+# Day-Off Request Views
+# =============================================================================
+
+
+class DayOffRequestListView(LoginRequiredMixin, ListView):
+    """
+    List day-off requests.
+
+    Managers see all requests, employees see only their own.
+    Supports filtering by status via query parameter.
+
+    Query Parameters:
+        status (str, optional): Filter by request status ('pending', 'approved',
+            'denied', or 'all'). Defaults to 'all'.
+
+    Context Variables:
+        requests: QuerySet of DayOffRequest objects.
+        is_manager: Boolean indicating if current user is a manager.
+        current_status: The currently selected status filter.
+    """
+
+    model = DayOffRequest
+    template_name = 'scheduling/dayoff_list.html'
+    context_object_name = 'requests'
+
+    def get_queryset(self):
+        """
+        Build the queryset for day-off requests.
+
+        Managers see all requests; employees see only their own.
+        Filters by status if provided in query parameters.
+        """
+        queryset = DayOffRequest.objects.select_related('employee', 'reviewed_by')
+
+        # Filter by role
+        if not self.request.user.is_manager:
+            queryset = queryset.filter(employee=self.request.user)
+
+        # Filter by status if provided
+        status = self.request.GET.get('status')
+        if status and status != 'all':
+            queryset = queryset.filter(status=status)
+
+        return queryset.order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        """Add is_manager flag and current status filter to context."""
+        context = super().get_context_data(**kwargs)
+        context['is_manager'] = self.request.user.is_manager
+        context['current_status'] = self.request.GET.get('status', 'all')
+        return context
+
+
+class DayOffRequestDetailView(LoginRequiredMixin, DetailView):
+    """
+    View single day-off request details.
+
+    Managers can view any request; employees can only view their own.
+
+    Context Variables:
+        dayoff: The DayOffRequest object.
+        is_manager: Boolean indicating if current user is a manager.
+    """
+
+    model = DayOffRequest
+    template_name = 'modals/dayoff_detail.html'
+    context_object_name = 'dayoff'
+
+    def get_queryset(self):
+        """
+        Build the queryset for day-off request detail.
+
+        Managers can view any request; employees can only view their own.
+        """
+        queryset = DayOffRequest.objects.select_related('employee', 'reviewed_by')
+        if not self.request.user.is_manager:
+            queryset = queryset.filter(employee=self.request.user)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        """Add is_manager flag to context."""
+        context = super().get_context_data(**kwargs)
+        context['is_manager'] = self.request.user.is_manager
+        return context
+
+
+class DayOffRequestUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for editing a pending day-off request.
+
+    Only the employee who created the request can edit it,
+    and only while it's still pending (not approved/denied).
+    """
+    model = DayOffRequest
+    form_class = DayOffRequestForm
+    template_name = 'modals/dayoff_edit.html'
+    context_object_name = 'dayoff'
+
+    def get_queryset(self):
+        """Only allow editing own pending requests."""
+        return DayOffRequest.objects.filter(
+            employee=self.request.user,
+            status=DayOffRequest.Status.PENDING
+        )
+
+    def form_valid(self, form):
+        """Handle successful form submission."""
+        self.object = form.save()
+        response = HttpResponse()
+        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        return response
+
+    def form_invalid(self, form):
+        """Handle invalid form submission for HTMX requests."""
+        context = self.get_context_data(form=form)
+        html = render_to_string(self.template_name, context, request=self.request)
+        return HttpResponse(html)
+
+
+class DayOffRequestCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create a new day-off request.
+
+    Handles POST requests to create a new day-off request.
+    Automatically assigns the current user as the employee.
+
+    HTMX Response:
+        On success, returns HttpResponse with HX-Trigger header containing
+        'closeModal, requestCreated' events.
+    """
+
+    model = DayOffRequest
+    form_class = DayOffRequestForm
+    template_name = 'modals/dayoff_form.html'
+
+    def form_valid(self, form):
+        """
+        Handle valid form submission.
+
+        Sets the employee field to the current user before saving,
+        sends email notification to managers, then returns an HTMX
+        response with trigger events.
+        """
+        form.instance.employee = self.request.user
+        self.object = form.save()
+
+        # Send email to managers
+        EmailService.send_dayoff_submitted(self.object)
+
+        response = HttpResponse(status=200)
+        response['HX-Trigger'] = 'closeModal, requestCreated'
+        return response
+
+    def form_invalid(self, form):
+        """
+        Handle invalid form submission for HTMX requests.
+
+        Re-renders the modal template with form errors so users
+        can see validation messages and correct their input.
+        """
+        context = self.get_context_data(form=form)
+        html = render_to_string(self.template_name, context, request=self.request)
+        return HttpResponse(html)
+
+
+class DayOffRequestCancelView(LoginRequiredMixin, View):
+    """
+    Cancel own pending day-off request.
+
+    Allows employees to cancel their own pending requests.
+    Only pending requests can be cancelled.
+
+    HTMX Response:
+        On success, returns HttpResponse with HX-Trigger header containing
+        'requestCancelled' event.
+    """
+
+    def post(self, request, pk):
+        """
+        Handle POST request to cancel a day-off request.
+
+        Only allows cancelling own pending requests.
+        """
+        dayoff_request = get_object_or_404(
+            DayOffRequest,
+            pk=pk,
+            employee=request.user,
+            status=DayOffRequest.Status.PENDING
+        )
+        dayoff_request.delete()
+
+        response = HttpResponse(status=200)
+        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        return response
+
+
+class DayOffRequestApproveView(ManagerRequiredMixin, View):
+    """
+    Approve a pending day-off request.
+
+    Only managers can approve requests. Only pending requests
+    can be approved.
+
+    HTMX Response:
+        Returns the updated request row HTML for in-place replacement.
+    """
+
+    def post(self, request, pk):
+        """
+        Handle POST request to approve a day-off request.
+
+        Updates the request status, records the reviewer, sends email
+        notification to employee, and returns the updated row for
+        HTMX replacement.
+        """
+        dayoff_request = get_object_or_404(
+            DayOffRequest,
+            pk=pk,
+            status=DayOffRequest.Status.PENDING
+        )
+
+        dayoff_request.status = DayOffRequest.Status.APPROVED
+        dayoff_request.reviewed_by = request.user
+        dayoff_request.reviewed_at = timezone.now()
+        dayoff_request.save()
+
+        # Send email to employee
+        EmailService.send_dayoff_approved(dayoff_request, request.user)
+
+        # Return updated row for HTMX
+        html = render_to_string(
+            'scheduling/partials/request_row.html',
+            {'dayoff': dayoff_request, 'is_manager': True},
+            request=request
+        )
+        response = HttpResponse(html)
+        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        return response
+
+
+class DayOffRequestDenyView(ManagerRequiredMixin, View):
+    """
+    Deny a pending day-off request.
+
+    Only managers can deny requests. Only pending requests
+    can be denied.
+
+    HTMX Response:
+        Returns the updated request row HTML for in-place replacement.
+    """
+
+    def post(self, request, pk):
+        """
+        Handle POST request to deny a day-off request.
+
+        Updates the request status, records the reviewer, sends email
+        notification to employee, and returns the updated row for
+        HTMX replacement.
+        """
+        dayoff_request = get_object_or_404(
+            DayOffRequest,
+            pk=pk,
+            status=DayOffRequest.Status.PENDING
+        )
+
+        dayoff_request.status = DayOffRequest.Status.DENIED
+        dayoff_request.reviewed_by = request.user
+        dayoff_request.reviewed_at = timezone.now()
+        dayoff_request.save()
+
+        # Send email to employee
+        EmailService.send_dayoff_denied(dayoff_request, request.user)
+
+        # Return updated row for HTMX
+        html = render_to_string(
+            'scheduling/partials/request_row.html',
+            {'dayoff': dayoff_request, 'is_manager': True},
+            request=request
+        )
+        response = HttpResponse(html)
+        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        return response
+
+
+class DayOffFormPartial(LoginRequiredMixin, TemplateView):
+    """
+    HTMX partial for day-off request form modal.
+
+    Provides a day-off request creation form for loading into the
+    global modal via HTMX.
+
+    Context Variables:
+        form: DayOffRequestForm instance.
+    """
+
+    template_name = 'modals/dayoff_form.html'
+
+    def get_context_data(self, **kwargs):
+        """Add the form to context."""
+        context = super().get_context_data(**kwargs)
+        context['form'] = DayOffRequestForm()
+        return context

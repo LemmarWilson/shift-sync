@@ -5,10 +5,12 @@ This module contains Django forms and model forms for handling user input
 in scheduling operations, including shift creation and editing.
 """
 
+from datetime import date
+
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import Shift
+from .models import DayOffRequest, Shift
 
 
 class ShiftForm(forms.ModelForm):
@@ -79,5 +81,54 @@ class ShiftForm(forms.ModelForm):
                 raise ValidationError(
                     'This shift overlaps with an existing shift for this employee.'
                 )
+
+        return cleaned_data
+
+
+class DayOffRequestForm(forms.ModelForm):
+    """Form for employees to submit day-off requests."""
+
+    class Meta:
+        model = DayOffRequest
+        fields = ['start_date', 'end_date', 'reason']
+        widgets = {
+            'start_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+            }),
+            'end_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+            }),
+            'reason': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500',
+                'placeholder': 'Reason for time off...'
+            }),
+        }
+
+    def clean(self):
+        """
+        Validate the day-off request data.
+
+        Ensures:
+        1. End date is on or after start date
+        2. Start date is not in the past
+
+        Returns:
+            The cleaned data dictionary.
+
+        Raises:
+            ValidationError: If validation fails.
+        """
+        cleaned_data = super().clean()
+        start = cleaned_data.get('start_date')
+        end = cleaned_data.get('end_date')
+
+        if start and end and end < start:
+            raise ValidationError('End date must be on or after start date.')
+
+        if start and start < date.today():
+            raise ValidationError('Cannot request time off for past dates.')
 
         return cleaned_data

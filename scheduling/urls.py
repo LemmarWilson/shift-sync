@@ -92,4 +92,48 @@ urlpatterns = [
         views.ShiftPublishToggleView.as_view(),
         name='shift_toggle_publish',
     ),
+
+    # Day-Off Request endpoints
+    path(
+        'requests/',
+        views.DayOffRequestListView.as_view(),
+        name='dayoff_list',
+    ),
+    path(
+        'requests/<int:pk>/',
+        views.DayOffRequestDetailView.as_view(),
+        name='dayoff_detail',
+    ),
+    path(
+        'requests/<int:pk>/edit/',
+        views.DayOffRequestUpdateView.as_view(),
+        name='dayoff_edit',
+    ),
+    path(
+        'requests/create/',
+        views.DayOffRequestCreateView.as_view(),
+        name='dayoff_create',
+    ),
+    path(
+        'requests/<int:pk>/cancel/',
+        views.DayOffRequestCancelView.as_view(),
+        name='dayoff_cancel',
+    ),
+    path(
+        'requests/<int:pk>/approve/',
+        views.DayOffRequestApproveView.as_view(),
+        name='dayoff_approve',
+    ),
+    path(
+        'requests/<int:pk>/deny/',
+        views.DayOffRequestDenyView.as_view(),
+        name='dayoff_deny',
+    ),
+
+    # HTMX partial endpoints - Day-Off Requests
+    path(
+        'partials/dayoff-form/',
+        views.DayOffFormPartial.as_view(),
+        name='dayoff_form_partial',
+    ),
 ]
