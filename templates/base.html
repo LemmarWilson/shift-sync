@@ -146,6 +146,16 @@
         [x-cloak] {
             display: none !important;
         }
+
+        /* Bell shake animation for new notifications */
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
+            20%, 40%, 60%, 80% { transform: rotate(10deg); }
+        }
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
     </style>
 
     {% block extra_head %}{% endblock %}

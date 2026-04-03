@@ -11,7 +11,7 @@ HTTP requests. Views are organized by functionality:
 from datetime import date, datetime, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views import View
@@ -20,8 +20,8 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, T
 
 from .forms import DayOffRequestForm, ShiftForm
 from .mixins import ManagerRequiredMixin
-from .models import DayOffRequest, Department, Shift, User
-from .services import CalendarService, EmailService
+from .models import DayOffRequest, Department, Notification, Shift, User
+from .services import CalendarService, EmailService, NotificationService
 
 
 class CalendarView(LoginRequiredMixin, TemplateView):
@@ -376,6 +376,11 @@ class ShiftCreateView(ManagerRequiredMixin, CreateView):
         # Send email if shift is published on creation
         if self.object.published:
             EmailService.send_shift_assigned(self.object)
+            NotificationService.create(
+                recipient=self.object.employee,
+                message=f"New shift assigned: {self.object.date.strftime('%A, %b %d')} ({self.object.start_time.strftime('%I:%M %p')} - {self.object.end_time.strftime('%I:%M %p')})",
+                link=f"/"
+            )
 
         # Render single shift card
         html = render_to_string(
@@ -484,6 +489,11 @@ class ShiftUpdateView(ManagerRequiredMixin, UpdateView):
         # Send email if shift is/was published
         if self.object.published or was_published:
             EmailService.send_shift_changed(self.object, old_data)
+            NotificationService.create(
+                recipient=self.object.employee,
+                message=f"Shift updated: {self.object.date.strftime('%A, %b %d')} ({self.object.start_time.strftime('%I:%M %p')} - {self.object.end_time.strftime('%I:%M %p')})",
+                link=f"/"
+            )
 
         # Render the updated shift card
         html = render_to_string(
@@ -554,6 +564,13 @@ class ShiftDeleteView(ManagerRequiredMixin, DeleteView):
         # Send email if shift was published
         if was_published:
             EmailService.send_shift_deleted(employee_email, shift_data)
+            employee = User.objects.filter(email=employee_email).first()
+            if employee:
+                NotificationService.create(
+                    recipient=employee,
+                    message=f"Shift cancelled: {shift_data['date'].strftime('%A, %b %d')}",
+                    link=""
+                )
 
         response = HttpResponse(status=200)
         response['HX-Trigger'] = 'closeModal, shiftDeleted'
@@ -637,6 +654,16 @@ class PublishShiftsView(ManagerRequiredMixin, View):
                     shifts_by_employee
                 )
 
+                # Create notifications for each employee
+                for employee in employees:
+                    employee_shifts = shifts_by_employee.get(employee.id, [])
+                    if employee_shifts:
+                        NotificationService.create(
+                            recipient=employee,
+                            message=f"Your schedule has been published: {email_start_date.strftime('%b %d')} - {email_end_date.strftime('%b %d')} ({len(employee_shifts)} shift{'s' if len(employee_shifts) > 1 else ''})",
+                            link="/"
+                        )
+
         response = HttpResponse(f'{count} shift{"s" if count != 1 else ""} published')
         response['HX-Trigger'] = 'closeModal, shiftUpdated'
         return response
@@ -672,6 +699,11 @@ class ShiftPublishToggleView(ManagerRequiredMixin, View):
         # Send email if toggled to published
         if shift.published and not was_published:
             EmailService.send_shift_assigned(shift)
+            NotificationService.create(
+                recipient=shift.employee,
+                message=f"New shift published: {shift.date.strftime('%A, %b %d')} ({shift.start_time.strftime('%I:%M %p')} - {shift.end_time.strftime('%I:%M %p')})",
+                link=f"/"
+            )
 
         html = render_to_string(
             'scheduling/partials/shift_card.html',
@@ -834,6 +866,16 @@ class DayOffRequestCreateView(LoginRequiredMixin, CreateView):
         # Send email to managers
         EmailService.send_dayoff_submitted(self.object)
 
+        # Create notifications for all managers
+        managers = User.objects.filter(role=User.Role.MANAGER)
+        employee_name = self.object.employee.get_full_name() or self.object.employee.username
+        for manager in managers:
+            NotificationService.create(
+                recipient=manager,
+                message=f"New day-off request from {employee_name}: {self.object.start_date.strftime('%b %d')} - {self.object.end_date.strftime('%b %d')}",
+                link=f"/requests/"
+            )
+
         response = HttpResponse(status=200)
         response['HX-Trigger'] = 'closeModal, requestCreated'
         return response
@@ -914,6 +956,13 @@ class DayOffRequestApproveView(ManagerRequiredMixin, View):
         # Send email to employee
         EmailService.send_dayoff_approved(dayoff_request, request.user)
 
+        # Create notification for employee
+        NotificationService.create(
+            recipient=dayoff_request.employee,
+            message=f"Your day-off request was approved: {dayoff_request.start_date.strftime('%b %d')} - {dayoff_request.end_date.strftime('%b %d')}",
+            link=f"/requests/"
+        )
+
         # Return updated row for HTMX
         html = render_to_string(
             'scheduling/partials/request_row.html',
@@ -921,7 +970,7 @@ class DayOffRequestApproveView(ManagerRequiredMixin, View):
             request=request
         )
         response = HttpResponse(html)
-        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        response['HX-Trigger'] = 'closeModal, requestUpdated'
         return response
 
 
@@ -958,6 +1007,13 @@ class DayOffRequestDenyView(ManagerRequiredMixin, View):
         # Send email to employee
         EmailService.send_dayoff_denied(dayoff_request, request.user)
 
+        # Create notification for employee
+        NotificationService.create(
+            recipient=dayoff_request.employee,
+            message=f"Your day-off request was denied: {dayoff_request.start_date.strftime('%b %d')} - {dayoff_request.end_date.strftime('%b %d')}",
+            link=f"/requests/"
+        )
+
         # Return updated row for HTMX
         html = render_to_string(
             'scheduling/partials/request_row.html',
@@ -965,7 +1021,7 @@ class DayOffRequestDenyView(ManagerRequiredMixin, View):
             request=request
         )
         response = HttpResponse(html)
-        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        response['HX-Trigger'] = 'closeModal, requestUpdated'
         return response
 
 
@@ -987,3 +1043,192 @@ class DayOffFormPartial(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context['form'] = DayOffRequestForm()
         return context
+
+
+class DayOffRequestListPartial(LoginRequiredMixin, TemplateView):
+    """
+    HTMX partial view for day-off requests list content.
+
+    Used for polling to auto-refresh the requests list when
+    status changes occur. Supports the same filtering as the
+    main list view.
+
+    Query Parameters:
+        status (str, optional): Filter by request status ('pending',
+            'approved', 'denied', or 'all'). Defaults to 'all'.
+
+    Context Variables:
+        requests: QuerySet of DayOffRequest objects.
+        is_manager: Boolean indicating if current user is a manager.
+    """
+
+    template_name = 'scheduling/partials/dayoff_list_content.html'
+
+    def get_context_data(self, **kwargs):
+        """Build context with filtered requests."""
+        context = super().get_context_data(**kwargs)
+
+        # Build queryset with same logic as DayOffRequestListView
+        queryset = DayOffRequest.objects.select_related('employee', 'reviewed_by')
+
+        # Filter by role: managers see all, employees see only their own
+        if not self.request.user.is_manager:
+            queryset = queryset.filter(employee=self.request.user)
+
+        # Filter by status if provided
+        status = self.request.GET.get('status')
+        if status and status != 'all':
+            queryset = queryset.filter(status=status)
+
+        context['requests'] = queryset.order_by('-created_at')
+        context['is_manager'] = self.request.user.is_manager
+
+        return context
+
+
+# =============================================================================
+# Notification Views
+# =============================================================================
+
+
+class NotificationBellPartial(LoginRequiredMixin, TemplateView):
+    """
+    HTMX partial view for the notification bell dropdown.
+
+    Renders the notification bell dropdown content with recent
+    notifications and unread count. Used for dynamic loading
+    via HTMX when clicking the notification bell icon.
+
+    Context Variables:
+        notifications: List of recent Notification instances.
+        unread_count: Number of unread notifications.
+    """
+
+    template_name = 'scheduling/partials/notification_bell.html'
+
+    def get_context_data(self, **kwargs):
+        """Build context with recent notifications and unread count."""
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context['notifications'] = NotificationService.get_recent(user, limit=5)
+        context['unread_count'] = NotificationService.get_unread_count(user)
+        return context
+
+
+class NotificationListView(LoginRequiredMixin, ListView):
+    """
+    Full page view for listing all user notifications.
+
+    Displays a paginated list of all notifications for the
+    authenticated user, ordered by creation date (newest first).
+
+    Context Variables:
+        notifications: QuerySet of Notification objects.
+        unread_count: Number of unread notifications.
+    """
+
+    model = Notification
+    template_name = 'scheduling/notification_list.html'
+    context_object_name = 'notifications'
+    paginate_by = 20
+
+    def get_queryset(self):
+        """Return notifications for the current user."""
+        return Notification.objects.filter(
+            recipient=self.request.user
+        ).order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        """Add unread count to context."""
+        context = super().get_context_data(**kwargs)
+        context['unread_count'] = NotificationService.get_unread_count(self.request.user)
+        return context
+
+
+class MarkNotificationsReadView(LoginRequiredMixin, View):
+    """
+    Mark all notifications as read for the current user.
+
+    Handles POST requests to mark all unread notifications as read.
+    Returns an empty response with appropriate HTMX trigger headers.
+
+    HTMX Response:
+        On success, returns HttpResponse with HX-Trigger header
+        containing 'notificationsRead' event.
+    """
+
+    def post(self, request):
+        """
+        Handle POST request to mark all notifications as read.
+
+        Delegates to NotificationService.mark_all_read() and returns
+        an empty response with HTMX trigger for frontend updates.
+        """
+        NotificationService.mark_all_read(request.user)
+
+        response = HttpResponse(status=200)
+        response['HX-Trigger'] = 'notificationsRead'
+        return response
+
+
+class NotificationCountView(LoginRequiredMixin, View):
+    """
+    Return the unread notification count as JSON.
+
+    Provides a lightweight endpoint for polling the unread
+    notification count without loading full notification data.
+
+    Response:
+        JSON object with 'count' key containing the unread count.
+
+    Example Response:
+        {"count": 5}
+    """
+
+    def get(self, request):
+        """
+        Handle GET request for unread notification count.
+
+        Returns a JSON response with the count of unread notifications.
+        """
+        count = NotificationService.get_unread_count(request.user)
+        return JsonResponse({'count': count})
+
+
+class NotificationClickView(LoginRequiredMixin, View):
+    """
+    Handle notification click: mark as read and redirect.
+
+    When a user clicks a notification, this view marks it as read
+    and redirects to the notification's associated link. If no link
+    is provided, redirects to the notification list page.
+
+    URL Parameters:
+        pk (int): Primary key of the notification to mark as read.
+
+    HTMX Response:
+        Returns a redirect response (HX-Redirect header for HTMX requests)
+        to the notification's link or the notification list page.
+    """
+
+    def get(self, request, pk):
+        """
+        Handle GET request to mark notification as read and redirect.
+
+        Marks the specified notification as read (if it belongs to the
+        current user), then redirects to the notification's link or
+        the notification list page.
+        """
+        notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+        NotificationService.mark_as_read(pk, request.user)
+
+        redirect_url = notification.link if notification.link else '/notifications/'
+
+        # Support HTMX redirect
+        if request.headers.get('HX-Request') == 'true':
+            response = HttpResponse(status=200)
+            response['HX-Redirect'] = redirect_url
+            return response
+
+        from django.shortcuts import redirect
+        return redirect(redirect_url)
