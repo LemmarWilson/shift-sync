@@ -1,0 +1,58 @@
+<!-- Animation wrapper -->
+<div class="{% if direction == 'prev' %}slide-right{% elif direction == 'next' %}slide-left{% endif %}">
+    <!-- Day Headers -->
+    <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
+        {% for day_date in week_dates %}
+        <div class="px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                {{ day_date|date:"D" }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Date Numbers Row -->
+    <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
+        {% for day_date in week_dates %}
+        <div class="px-2 py-2 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold {% if day_date == today %}bg-indigo-500 text-white{% else %}text-gray-900 dark:text-white{% endif %}">
+                {{ day_date|date:"j" }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Day Cells with Shifts -->
+    <div class="grid grid-cols-7 min-h-[400px]">
+        {% for day_date in week_dates %}
+            {% include 'scheduling/partials/day_cell.html' with day_date=day_date shifts=shifts_by_date day_offs=day_offs_by_date %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- OOB Updates for header navigation (updates elements outside #calendar-grid) -->
+<div id="calendar-header" hx-swap-oob="true" class="text-center min-w-[200px]">
+    <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
+        {{ week_start|date:"M j" }} - {{ week_end|date:"M j, Y" }}
+    </h1>
+</div>
+
+<button id="nav-prev" hx-swap-oob="true"
+    hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ prev_period }}&direction=prev&view_mode=week"
+    hx-target="#calendar-grid"
+    hx-swap="innerHTML"
+    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+    </svg>
+</button>
+
+<button id="nav-next" hx-swap-oob="true"
+    hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ next_period }}&direction=next&view_mode=week"
+    hx-target="#calendar-grid"
+    hx-swap="innerHTML"
+    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+    </svg>
+</button>

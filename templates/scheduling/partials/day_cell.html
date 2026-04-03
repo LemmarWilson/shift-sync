@@ -1,0 +1,41 @@
+{% with day_shifts=shifts|default_if_none:shifts_by_date %}
+{% with cell_shifts=day_shifts|default:"" %}
+<div class="relative border-r border-gray-200 dark:border-gray-700 last:border-r-0 p-2 min-h-[400px] {% if day_date == today %}bg-indigo-50/50 dark:bg-indigo-900/10{% endif %}"
+     data-date="{{ day_date|date:'Y-m-d' }}">
+
+    <!-- Day-off overlay (if approved day-off exists for this date) -->
+    {% if day_offs_by_date %}
+        {% with day_off_list=day_offs_by_date|default:"" %}
+        {% for day_off in day_off_list %}
+            {% if day_off.start_date <= day_date and day_off.end_date >= day_date %}
+            <div class="absolute inset-0 bg-gray-100 dark:bg-gray-700/50 opacity-50" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px);"></div>
+            {% endif %}
+        {% endfor %}
+        {% endwith %}
+    {% endif %}
+
+    <!-- Shifts Container -->
+    <div class="relative space-y-2">
+        {% if shifts_by_date %}
+            {% with day_shift_list=shifts_by_date %}
+            {% for shift in day_shift_list %}
+                {% if shift.date == day_date %}
+                    {% include 'scheduling/partials/shift_card.html' with shift=shift %}
+                {% endif %}
+            {% endfor %}
+            {% endwith %}
+        {% endif %}
+    </div>
+
+    <!-- Add Shift Button (Managers only, on hover) -->
+    {% if user.is_manager %}
+    <button class="absolute bottom-2 right-2 opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity p-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm group-hover:opacity-100"
+            title="Add shift">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+    </button>
+    {% endif %}
+</div>
+{% endwith %}
+{% endwith %}

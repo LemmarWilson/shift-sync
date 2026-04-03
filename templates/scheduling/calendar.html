@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Calendar - ShiftSync{% endblock %}
+
+{% block navbar %}
+{% include 'components/navbar.html' %}
+{% endblock %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="{ viewMode: '{{ view_mode|default:'week' }}' }">
+    <!-- Calendar Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
+        <!-- Period Navigation -->
+        <div class="flex items-center space-x-4">
+            <button
+                id="nav-prev"
+                hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ prev_period }}&direction=prev&view_mode={{ view_mode|default:'week' }}"
+                hx-target="#calendar-grid"
+                hx-swap="innerHTML"
+                class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+
+            <div id="calendar-header" class="text-center min-w-[200px]">
+                <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
+                    {% if view_mode == 'month' %}
+                        {{ view_date|date:"F Y" }}
+                    {% else %}
+                        {{ week_start|date:"M j" }} - {{ week_end|date:"M j, Y" }}
+                    {% endif %}
+                </h1>
+            </div>
+
+            <button
+                id="nav-next"
+                hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ next_period }}&direction=next&view_mode={{ view_mode|default:'week' }}"
+                hx-target="#calendar-grid"
+                hx-swap="innerHTML"
+                class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Right Side: Today Button + View Toggle -->
+        <div class="flex items-center space-x-3">
+            <a
+                href="{% url 'scheduling:calendar' %}"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+                Today
+            </a>
+
+            <!-- View Toggle -->
+            <div class="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                <button
+                    hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ view_date|date:'Y-m-d' }}&view_mode=week"
+                    hx-target="#calendar-grid"
+                    hx-swap="innerHTML"
+                    @click="viewMode = 'week'"
+                    :class="viewMode === 'week' ? 'text-white bg-indigo-500' : 'text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-4 py-2 text-sm font-medium transition-colors"
+                >Week</button>
+                <button
+                    hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ view_date|date:'Y-m-d' }}&view_mode=month"
+                    hx-target="#calendar-grid"
+                    hx-swap="innerHTML"
+                    @click="viewMode = 'month'"
+                    :class="viewMode === 'month' ? 'text-white bg-indigo-500' : 'text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-4 py-2 text-sm font-medium transition-colors"
+                >Month</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar Grid Container -->
+    <div id="calendar-grid" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {% include 'scheduling/partials/calendar_grid.html' %}
+    </div>
+</main>
+{% endblock %}

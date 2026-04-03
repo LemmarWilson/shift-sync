@@ -71,6 +71,42 @@
         .btn-primary {
             @apply flex w-full justify-center rounded-lg bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-colors duration-200;
         }
+
+        /* Slide animations for calendar navigation */
+        @keyframes slideLeft {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideRight {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .slide-left { animation: slideLeft 0.3s ease-out; }
+        .slide-right { animation: slideRight 0.3s ease-out; }
+
+        /* Staggered fade-in for calendar rows */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-row {
+            animation: fadeInUp 0.3s ease-out forwards;
+            animation-delay: calc(var(--row-index) * 50ms);
+        }
+
+        /* Shift card hover effect */
+        .shift-card {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .shift-card:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Calendar overflow handling */
+        #calendar-grid {
+            overflow: hidden;
+        }
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -123,6 +159,11 @@
         </div>
         {% endfor %}
     </div>
+    {% endif %}
+
+    <!-- Navbar (for authenticated users) -->
+    {% if user.is_authenticated %}
+        {% block navbar %}{% endblock %}
     {% endif %}
 
     {% block content %}{% endblock %}

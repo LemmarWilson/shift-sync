@@ -1,0 +1,93 @@
+{% load scheduling_tags %}
+
+<!-- Animation wrapper -->
+<div class="{% if direction == 'prev' %}slide-right{% elif direction == 'next' %}slide-left{% endif %}">
+    <!-- Month/Year Header -->
+    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white text-center">
+            {{ view_date|date:"F Y" }}
+        </h2>
+    </div>
+
+    <!-- Day Headers -->
+    <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
+        {% for day_name in day_names %}
+        <div class="px-2 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase border-r border-gray-200 dark:border-gray-700 last:border-r-0">
+            {{ day_name }}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Month Weeks -->
+    {% for week in month_weeks %}
+    <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+        {% for day_date in week %}
+        <div class="relative min-h-[100px] p-1.5 border-r border-gray-200 dark:border-gray-700 last:border-r-0
+            {% if day_date.month != current_month %}bg-gray-50 dark:bg-gray-800/50{% endif %}
+            {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
+
+            <!-- Date Number -->
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-sm {% if day_date.month != current_month %}text-gray-400 dark:text-gray-500{% elif day_date == today %}font-bold text-indigo-600 dark:text-indigo-400{% else %}text-gray-900 dark:text-white{% endif %}">
+                    {{ day_date|date:"j" }}
+                </span>
+            </div>
+
+            <!-- Shifts (compact view) -->
+            <div class="space-y-0.5">
+                {% with day_shifts=shifts_by_date|get_item:day_date %}
+                {% for shift in day_shifts|slice:":3" %}
+                <div class="text-xs px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
+                     style="background-color: {{ shift.employee.color }}20; border-left: 2px solid {{ shift.employee.color }};">
+                    <span class="font-medium">{{ shift.start_time|time:"g:iA" }}</span>
+                    <span class="text-gray-600 dark:text-gray-400">{{ shift.employee.first_name|default:shift.employee.username|truncatechars:6 }}</span>
+                </div>
+                {% endfor %}
+                {% if day_shifts|length > 3 %}
+                <div class="text-xs text-gray-500 dark:text-gray-400 px-1">
+                    +{{ day_shifts|length|add:"-3" }} more
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Day-off indicator -->
+            {% with day_off_list=day_offs_by_date|get_item:day_date %}
+            {% if day_off_list %}
+            <div class="absolute top-1 right-1">
+                <span class="inline-block w-2 h-2 bg-amber-400 rounded-full" title="Day off"></span>
+            </div>
+            {% endif %}
+            {% endwith %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- OOB Updates for header navigation (updates elements outside #calendar-grid) -->
+<div id="calendar-header" hx-swap-oob="true" class="text-center min-w-[200px]">
+    <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
+        {{ view_date|date:"F Y" }}
+    </h1>
+</div>
+
+<button id="nav-prev" hx-swap-oob="true"
+    hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ prev_period }}&direction=prev&view_mode=month"
+    hx-target="#calendar-grid"
+    hx-swap="innerHTML"
+    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+    </svg>
+</button>
+
+<button id="nav-next" hx-swap-oob="true"
+    hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ next_period }}&direction=next&view_mode=month"
+    hx-target="#calendar-grid"
+    hx-swap="innerHTML"
+    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+    </svg>
+</button>
