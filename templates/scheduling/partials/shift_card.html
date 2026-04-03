@@ -1,0 +1,26 @@
+<div class="shift-card bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 p-3 cursor-pointer hover:shadow-md transition-shadow"
+     style="border-left: 4px solid {{ shift.employee.color }};"
+     id="shift-{{ shift.id }}">
+
+    <!-- Employee Name -->
+    <div class="flex items-center space-x-2 mb-1">
+        <div class="w-2 h-2 rounded-full" style="background-color: {{ shift.employee.color }};"></div>
+        <span class="text-sm font-medium text-gray-900 dark:text-white truncate">
+            {{ shift.employee.get_full_name|default:shift.employee.username }}
+        </span>
+    </div>
+
+    <!-- Time Range -->
+    <div class="text-xs text-gray-500 dark:text-gray-400">
+        {{ shift.start_time|time:"g:i A" }} - {{ shift.end_time|time:"g:i A" }}
+    </div>
+
+    <!-- Draft Badge (if not published) -->
+    {% if not shift.published %}
+    <div class="mt-2">
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+            Draft
+        </span>
+    </div>
+    {% endif %}
+</div>
