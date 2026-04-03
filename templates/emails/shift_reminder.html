@@ -1,0 +1,22 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<p class="greeting">Hi {{ employee_name }},</p>
+
+<p>This is a friendly reminder about your shift tomorrow:</p>
+
+<div class="shift-card">
+  <div class="shift-date">{{ date_formatted }}</div>
+  <div class="shift-time">{{ time_range }}</div>
+  {% if shift.department %}
+  <div class="shift-notes">Department: {{ shift.department.name }}</div>
+  {% endif %}
+  {% if shift.notes %}
+  <div class="shift-notes">Notes: {{ shift.notes }}</div>
+  {% endif %}
+</div>
+
+<p>Please make sure to arrive on time. If you have any questions or need to make changes, please contact your manager as soon as possible.</p>
+
+<p>Log in to ShiftSync to view your full schedule.</p>
+{% endblock %}
