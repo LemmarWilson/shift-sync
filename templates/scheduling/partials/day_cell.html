@@ -37,7 +37,7 @@
             hx-target="#modal-content"
             hx-trigger="click"
             @htmx:after-request="$dispatch('open-modal')"
-            class="absolute bottom-2 right-2 opacity-50 hover:opacity-100 focus:opacity-100 group-hover:opacity-100 transition-opacity p-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm"
+            class="absolute bottom-2 right-2 opacity-100 sm:opacity-50 hover:opacity-100 focus:opacity-100 sm:group-hover:opacity-100 transition-opacity p-3 sm:p-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm"
             title="Add shift">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>

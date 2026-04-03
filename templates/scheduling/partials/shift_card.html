@@ -47,7 +47,7 @@
                 hx-target="#shift-{{ shift.id }}"
                 hx-swap="outerHTML"
                 @click.stop
-                class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                class="p-2 sm:p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                 title="{% if shift.published %}Unpublish shift{% else %}Publish shift{% endif %}">
             {% if shift.published %}
             <!-- Eye-off icon for unpublish -->

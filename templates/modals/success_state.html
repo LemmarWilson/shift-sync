@@ -1,0 +1,19 @@
+<!-- Success State Modal Content -->
+<div class="p-6" x-data="{ }" x-init="setTimeout(() => { $dispatch('close-modal'); }, 1200)">
+    <div class="text-center space-y-4 py-8">
+        <!-- Success Checkmark -->
+        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 success-check">
+            <svg class="h-10 w-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+
+        <!-- Message -->
+        <div>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ title|default:"Success!" }}</h3>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {{ message|default:"Your changes have been saved." }}
+            </p>
+        </div>
+    </div>
+</div>

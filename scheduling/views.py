@@ -12,11 +12,32 @@ from datetime import date, datetime, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views import View
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView
+
+
+class LandingView(View):
+    """
+    Public landing page for ShiftSync.
+
+    Redirects authenticated users to the calendar.
+    Shows marketing page to unauthenticated users.
+    """
+
+    def get(self, request):
+        """
+        Handle GET requests for the landing page.
+
+        Returns:
+            Redirect to calendar if user is authenticated,
+            otherwise renders the landing page template.
+        """
+        if request.user.is_authenticated:
+            return redirect('scheduling:calendar')
+        return render(request, 'landing.html')
 
 from .forms import DayOffRequestForm, ShiftForm
 from .mixins import ManagerRequiredMixin
@@ -382,16 +403,19 @@ class ShiftCreateView(ManagerRequiredMixin, CreateView):
                 link=f"/"
             )
 
-        # Render single shift card
+        # Render success state template
         html = render_to_string(
-            'scheduling/partials/shift_card.html',
-            {'shift': self.object},
+            'modals/success_state.html',
+            {
+                'title': 'Shift Created!',
+                'message': f"Shift for {self.object.employee.get_full_name() or self.object.employee.username} has been scheduled."
+            },
             request=self.request
         )
 
         response = HttpResponse(html)
-        # Close modal via server-side trigger and signal calendar refresh
-        response['HX-Trigger'] = 'closeModal, shiftCreated'
+        # Signal calendar refresh (modal closes via Alpine.js after animation)
+        response['HX-Trigger'] = 'shiftCreated'
         return response
 
     def form_invalid(self, form):
@@ -480,7 +504,8 @@ class ShiftUpdateView(ManagerRequiredMixin, UpdateView):
         sends email notification if shift is/was published, and returns
         an HTMX response with the updated shift card and a close-modal trigger.
         """
-        # Capture old data before save for email notification
+        # Capture old data BEFORE save so we can show "changed from X to Y" in the email.
+        # self.object still holds the original database values until form.save() is called.
         old_data = {
             'date': self.object.date,
             'start_time': self.object.start_time,
@@ -490,7 +515,11 @@ class ShiftUpdateView(ManagerRequiredMixin, UpdateView):
 
         self.object = form.save()
 
-        # Send email if shift is/was published
+        # Send notification if shift is currently published OR was previously published.
+        # Why both conditions?
+        # - If published now: employee needs to know their active schedule changed
+        # - If was published: employee was already notified about the shift, so they need
+        #   to know it was modified (even if it's now unpublished/cancelled)
         if self.object.published or was_published:
             EmailService.send_shift_changed(self.object, old_data)
             NotificationService.create(
@@ -499,15 +528,19 @@ class ShiftUpdateView(ManagerRequiredMixin, UpdateView):
                 link=f"/"
             )
 
-        # Render the updated shift card
+        # Render success state template
         html = render_to_string(
-            'scheduling/partials/shift_card.html',
-            {'shift': self.object},
+            'modals/success_state.html',
+            {
+                'title': 'Shift Updated!',
+                'message': f"Changes for {self.object.employee.get_full_name() or self.object.employee.username}'s shift have been saved."
+            },
             request=self.request
         )
 
         response = HttpResponse(html)
-        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        # Signal calendar refresh (modal closes via Alpine.js after animation)
+        response['HX-Trigger'] = 'shiftUpdated'
         return response
 
     def form_invalid(self, form):
@@ -624,19 +657,23 @@ class PublishShiftsView(ManagerRequiredMixin, View):
                 published=False
             )
 
-        # Capture shift IDs before update for email notifications
+        # Capture shift IDs BEFORE the bulk update because update() returns count, not objects.
+        # We need these IDs to re-fetch the shifts with related data for email notifications.
         affected_shift_ids = list(queryset.values_list('id', flat=True))
 
         count = queryset.update(published=True)
 
         # Send emails to affected employees if shifts were published
         if count > 0 and affected_shift_ids:
-            # Re-fetch the now-published shifts with related data
+            # Re-fetch shifts with select_related to avoid N+1 queries when accessing employee data
             published_shifts = Shift.objects.filter(
                 id__in=affected_shift_ids
             ).select_related('employee')
 
-            # Group shifts by employee
+            # Group shifts by employee ID for batched email sending. This strategy:
+            # 1. Sends ONE email per employee with ALL their shifts (not one email per shift)
+            # 2. Reduces email volume and provides better UX (single consolidated schedule)
+            # 3. Uses employee.id as key to handle multiple shifts for same employee
             shifts_by_employee = {}
             employees = set()
             for shift in published_shifts:
@@ -645,7 +682,8 @@ class PublishShiftsView(ManagerRequiredMixin, View):
                     shifts_by_employee[shift.employee.id] = []
                 shifts_by_employee[shift.employee.id].append(shift)
 
-            # Determine date range for email subject
+            # Determine the actual date range from published shifts for accurate email subject
+            # (may differ from requested range if some dates had no unpublished shifts)
             if published_shifts:
                 all_dates = [s.date for s in published_shifts]
                 email_start_date = min(all_dates)
@@ -658,7 +696,7 @@ class PublishShiftsView(ManagerRequiredMixin, View):
                     shifts_by_employee
                 )
 
-                # Create notifications for each employee
+                # Create in-app notifications for each employee with shift count for quick reference
                 for employee in employees:
                     employee_shifts = shifts_by_employee.get(employee.id, [])
                     if employee_shifts:
@@ -887,8 +925,19 @@ class DayOffRequestCreateView(LoginRequiredMixin, CreateView):
                 link=f"/requests/"
             )
 
-        response = HttpResponse(status=200)
-        response['HX-Trigger'] = 'closeModal, requestCreated'
+        # Render success state template
+        html = render_to_string(
+            'modals/success_state.html',
+            {
+                'title': 'Request Submitted!',
+                'message': f"Your time off request for {self.object.start_date.strftime('%b %d')} - {self.object.end_date.strftime('%b %d')} has been submitted."
+            },
+            request=self.request
+        )
+
+        response = HttpResponse(html)
+        # Signal list refresh (modal closes via Alpine.js after animation)
+        response['HX-Trigger'] = 'requestCreated'
         return response
 
     def form_invalid(self, form):

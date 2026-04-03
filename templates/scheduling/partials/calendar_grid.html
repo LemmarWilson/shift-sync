@@ -1,33 +1,62 @@
 <!-- Animation wrapper -->
 <div class="{% if direction == 'prev' %}slide-right{% elif direction == 'next' %}slide-left{% endif %}">
-    <!-- Day Headers -->
-    <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
-        {% for day_date in week_dates %}
-        <div class="px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
-            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                {{ day_date|date:"D" }}
-            </span>
+    {% with has_any_shifts=shifts_by_date.values|length %}
+
+    <!-- Mobile scroll wrapper -->
+    <div class="overflow-x-auto -mx-4 px-4 md:overflow-visible md:mx-0 md:px-0">
+        <div class="min-w-[840px] md:min-w-0">
+            <!-- Day Headers -->
+            <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700 fade-in-row" style="--row-index: 0;">
+                {% for day_date in week_dates %}
+                <div class="min-w-[120px] px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                        {{ day_date|date:"D" }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Date Numbers Row -->
+            <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700 fade-in-row" style="--row-index: 1;">
+                {% for day_date in week_dates %}
+                <div class="min-w-[120px] px-2 py-2 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold {% if day_date == today %}bg-indigo-500 text-white{% else %}text-gray-900 dark:text-white{% endif %}">
+                        {{ day_date|date:"j" }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Day Cells with Shifts -->
+            <div class="grid grid-cols-7 min-h-[400px] fade-in-row" style="--row-index: 2;">
+                {% for day_date in week_dates %}
+                    {% include 'scheduling/partials/day_cell.html' with day_date=day_date shifts=shifts_by_date day_offs=day_offs_by_date %}
+                {% endfor %}
+            </div>
         </div>
-        {% endfor %}
     </div>
 
-    <!-- Date Numbers Row -->
-    <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
-        {% for day_date in week_dates %}
-        <div class="px-2 py-2 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold {% if day_date == today %}bg-indigo-500 text-white{% else %}text-gray-900 dark:text-white{% endif %}">
-                {{ day_date|date:"j" }}
-            </span>
+    <!-- Empty State (when no shifts exist for the entire week) -->
+    {% if not shifts_by_date %}
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none fade-in-row" style="--row-index: 3;">
+        <div class="text-center px-4 py-8 pointer-events-auto">
+            <svg class="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">No shifts scheduled</h3>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                There are no shifts scheduled for this week.
+            </p>
+            {% if user.is_manager %}
+            <p class="mt-2 text-sm text-indigo-600 dark:text-indigo-400">
+                Click on any day to create a shift.
+            </p>
+            {% endif %}
         </div>
-        {% endfor %}
     </div>
+    {% endif %}
 
-    <!-- Day Cells with Shifts -->
-    <div class="grid grid-cols-7 min-h-[400px]">
-        {% for day_date in week_dates %}
-            {% include 'scheduling/partials/day_cell.html' with day_date=day_date shifts=shifts_by_date day_offs=day_offs_by_date %}
-        {% endfor %}
-    </div>
+    {% endwith %}
 </div>
 
 {% if is_htmx %}
@@ -42,7 +71,7 @@
     hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ prev_period }}&direction=prev&view_mode=week"
     hx-target="#calendar-grid"
     hx-swap="innerHTML"
-    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+    class="p-3 sm:p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
     </svg>
@@ -52,7 +81,7 @@
     hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ next_period }}&direction=next&view_mode=week"
     hx-target="#calendar-grid"
     hx-swap="innerHTML"
-    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+    class="p-3 sm:p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
     <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
     </svg>

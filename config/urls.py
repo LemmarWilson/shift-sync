@@ -9,9 +9,14 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
+from scheduling.views import LandingView
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # Landing page (public)
+    path('', LandingView.as_view(), name='landing'),
 
     # Authentication URLs
     path('login/', auth_views.LoginView.as_view(), name='login'),
@@ -37,6 +42,6 @@ urlpatterns = [
         name='password_reset_complete',
     ),
 
-    # App URLs
+    # App URLs (note: scheduling app's root '' is now calendar/ only)
     path('', include('scheduling.urls')),
 ]

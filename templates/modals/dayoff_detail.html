@@ -16,7 +16,7 @@
             {% endif %}
         </div>
         <button @click="$dispatch('close-modal')"
-                class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                class="p-2 sm:p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -41,6 +41,7 @@
     </div>
 
     <!-- Details -->
+    <div class="max-h-[60vh] overflow-y-auto">
     <div class="space-y-4">
         <!-- Employee info: shown if manager OR viewing someone else's request -->
         {% if is_manager or not is_own_request %}
@@ -90,14 +91,15 @@
         </div>
         {% endif %}
     </div>
+    </div>
 
     <!-- Footer -->
     <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
         {% if dayoff.status == 'pending' %}
             {% if is_manager %}
             <!-- Manager Actions: Approve / Deny -->
-            <div class="flex justify-between items-center">
-                <div class="flex space-x-2">
+            <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:gap-2">
                     <button hx-post="{% url 'scheduling:dayoff_approve' pk=dayoff.pk %}"
                             hx-swap="none"
                             class="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-2">
@@ -122,8 +124,8 @@
             </div>
             {% elif is_own_request %}
             <!-- Owner Action: Edit or Cancel own request (only if they own it) -->
-            <div class="flex justify-between items-center">
-                <div class="flex space-x-2">
+            <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:gap-2">
                     <button hx-get="{% url 'scheduling:dayoff_edit' pk=dayoff.pk %}"
                             hx-target="#modal-content"
                             hx-swap="innerHTML"

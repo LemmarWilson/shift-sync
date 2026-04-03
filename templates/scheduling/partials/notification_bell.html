@@ -3,7 +3,7 @@
 <div x-data="{ open: false }" class="relative">
     <!-- Bell Button -->
     <button @click="open = !open"
-            class="relative p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+            class="relative p-3 sm:p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
         <!-- Bell Icon -->
         <svg class="w-6 h-6 {% if unread_count > 0 %}animate-shake{% endif %}"
              fill="none"
@@ -33,7 +33,7 @@
          x-transition:leave-start="transform opacity-100 scale-100"
          x-transition:leave-end="transform opacity-0 scale-95"
          x-cloak
-         class="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
+         class="absolute right-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
 
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
@@ -50,7 +50,7 @@
         </div>
 
         <!-- Notifications List -->
-        <div class="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+        <div class="max-h-60 sm:max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
             {% if notifications %}
                 {% for notification in notifications %}
                 <a href="{% url 'scheduling:notification_click' pk=notification.pk %}"

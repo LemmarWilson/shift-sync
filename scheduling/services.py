@@ -163,23 +163,28 @@ class CalendarService:
             >>> shifts[date(2024, 3, 12)]
             [<Shift: John - 2024-03-12 (09:00-17:00)>]
         """
-        # Base queryset filtered by date range
+        # Base queryset filtered by date range with eager loading to avoid N+1 queries
         queryset = Shift.objects.filter(
             date__gte=start_date,
             date__lte=end_date,
         ).select_related('employee', 'department')
 
-        # Apply visibility filters based on user role and published_only flag
+        # Role-based visibility filtering:
+        # - Managers need to see ALL shifts (published + unpublished) to manage the schedule
+        # - Employees should only see published shifts to avoid confusion about tentative schedules
+        # - However, employees should see their OWN unpublished shifts so they know what's planned for them
+        # The Q object with OR logic handles this: published=True catches all public shifts,
+        # while employee=user catches the current user's unpublished drafts
         if published_only:
             queryset = queryset.filter(published=True)
         elif user is not None and not user.is_manager:
-            # Employees see: published shifts OR their own unpublished shifts
             queryset = queryset.filter(
                 Q(published=True) | Q(employee=user)
             )
-        # If user is a manager (and not published_only), they see all shifts
+        # Managers (when published_only=False) see all shifts - no additional filter needed
 
-        # Group shifts by date and add ownership flag
+        # Group shifts by date for calendar rendering and add ownership flag for UI styling
+        # (e.g., highlighting the user's own shifts with a different color/badge)
         shifts_by_date: dict[date, list[Shift]] = defaultdict(list)
         for shift in queryset.order_by('date', 'start_time'):
             shift.is_own = (user is not None and shift.employee_id == user.id)
@@ -219,34 +224,40 @@ class CalendarService:
             >>> date(2024, 3, 12) in day_offs
             True
         """
-        # Find approved and pending requests that overlap with the query range
-        # A request overlaps if: request.start_date <= end_date AND request.end_date >= start_date
+        # Find requests that overlap with the query range using date range intersection logic:
+        # A request overlaps if its start is before/on the query end AND its end is after/on the query start
+        # This catches: requests fully within range, requests spanning the range, and partial overlaps
         queryset = DayOffRequest.objects.filter(
             status__in=[DayOffRequest.Status.APPROVED, DayOffRequest.Status.PENDING],
             start_date__lte=end_date,
             end_date__gte=start_date,
         ).select_related('employee')
 
-        # Apply visibility filters based on user role
-        # Managers see all approved + pending; employees see their own (pending + approved)
-        # plus others' APPROVED only
+        # Role-based visibility for day-off requests:
+        # - Managers see all pending + approved requests (need full visibility for scheduling decisions)
+        # - Employees see their own requests (any status) so they can track their submissions
+        # - Employees also see others' APPROVED requests (need to know who's off for coordination)
+        # - Employees should NOT see others' PENDING requests (privacy - awaiting manager decision)
         if user is not None and not user.is_manager:
             queryset = queryset.filter(
                 Q(employee=user, status__in=[DayOffRequest.Status.APPROVED, DayOffRequest.Status.PENDING])
                 | Q(status=DayOffRequest.Status.APPROVED)
             ).distinct()
 
-        # Group by individual dates within the range
+        # Group by individual dates within the range for calendar cell rendering
         day_offs_by_date: dict[date, list[DayOffRequest]] = defaultdict(list)
 
         for request in queryset:
-            # Add ownership flag
             request.is_own = (user is not None and request.employee_id == user.id)
-            # Calculate the overlap between request dates and query range
+
+            # Calculate the effective date range to display: the intersection of the request
+            # dates and the query range. This handles partial overlaps correctly - e.g., if a
+            # request spans March 10-15 but we're viewing March 12-18, we only show it on 12-15
             effective_start = max(request.start_date, start_date)
             effective_end = min(request.end_date, end_date)
 
-            # Add the request to each date in the effective range
+            # Add the request to each individual date in the effective range
+            # This allows the same request to appear on multiple calendar cells for multi-day time off
             current_date = effective_start
             while current_date <= effective_end:
                 day_offs_by_date[current_date].append(request)
