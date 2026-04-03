@@ -47,8 +47,22 @@
             </button>
         </div>
 
-        <!-- Right Side: Today Button + View Toggle -->
+        <!-- Right Side: Publish Week + Today Button + View Toggle -->
         <div class="flex items-center space-x-3">
+            {% if request.user.is_manager %}
+            <!-- Publish Week Button (manager only) -->
+            <button hx-get="{% url 'scheduling:publish_confirm' %}?start={{ week_start|date:'Y-m-d' }}&end={{ week_end|date:'Y-m-d' }}"
+                    hx-target="#modal-content"
+                    hx-swap="innerHTML"
+                    @htmx:after-request="$dispatch('open-modal')"
+                    class="px-4 py-2 text-sm font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>Publish Week</span>
+            </button>
+            {% endif %}
+
             <a
                 href="{% url 'scheduling:calendar' %}"
                 class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -82,5 +96,64 @@
     <div id="calendar-grid" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {% include 'scheduling/partials/calendar_grid.html' %}
     </div>
+
+    <!-- Global Modal Container -->
+    <div x-data="{ showModal: false }"
+         @open-modal.window="showModal = true"
+         @close-modal.window="showModal = false"
+         @keydown.escape.window="showModal = false"
+         x-cloak>
+
+        <!-- Backdrop -->
+        <div x-show="showModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-50 bg-black/50"
+             @click="showModal = false">
+        </div>
+
+        <!-- Modal Panel -->
+        <div x-show="showModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4">
+            <div id="modal-content"
+                 @click.stop
+                 class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto pointer-events-auto">
+                <!-- Content loaded via HTMX -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Handle closeModal HX-Trigger from server
+    document.body.addEventListener('closeModal', function() {
+        window.dispatchEvent(new CustomEvent('close-modal'));
+    });
+
+    // Refresh calendar when shift is created
+    document.body.addEventListener('shiftCreated', function() {
+        // Reload the calendar grid to show new shift
+        htmx.ajax('GET', '{% url "scheduling:partial_calendar_grid" %}?date={{ view_date|date:"Y-m-d" }}&view_mode={{ view_mode }}', {target: '#calendar-grid', swap: 'innerHTML'});
+    });
+
+    // Refresh calendar when shift is updated or published/unpublished
+    document.body.addEventListener('shiftUpdated', function() {
+        htmx.ajax('GET', '{% url "scheduling:partial_calendar_grid" %}?date={{ view_date|date:"Y-m-d" }}&view_mode={{ view_mode }}', {target: '#calendar-grid', swap: 'innerHTML'});
+    });
+
+    // Refresh calendar when shift is deleted
+    document.body.addEventListener('shiftDeleted', function() {
+        htmx.ajax('GET', '{% url "scheduling:partial_calendar_grid" %}?date={{ view_date|date:"Y-m-d" }}&view_mode={{ view_mode }}', {target: '#calendar-grid', swap: 'innerHTML'});
+    });
+    </script>
 </main>
 {% endblock %}

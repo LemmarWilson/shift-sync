@@ -5,14 +5,22 @@ This module contains class-based views for handling calendar and scheduling
 HTTP requests. Views are organized by functionality:
 - Calendar views for displaying shifts and time-off in weekly/monthly formats
 - HTMX partial views for dynamic page updates
+- Shift CRUD views for managing shifts
 """
 
 from datetime import date, datetime, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import TemplateView
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
+from django.views import View
+from django.views.generic import CreateView, DeleteView, DetailView, TemplateView, UpdateView
 
-from .services import CalendarService
+from .forms import ShiftForm
+from .mixins import ManagerRequiredMixin
+from .models import Department, Shift, User
+from .services import CalendarService, EmailService
 
 
 class CalendarView(LoginRequiredMixin, TemplateView):
@@ -86,6 +94,8 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             'next_period': next_week,
             'today': date.today(),
             'view_mode': 'week',
+            'employees': User.objects.all(),
+            'departments': Department.objects.all(),
         })
         return context
 
@@ -142,6 +152,9 @@ class CalendarGridPartial(LoginRequiredMixin, TemplateView):
         """
         context = super().get_context_data(**kwargs)
 
+        # Detect if this is an HTMX request for conditional OOB rendering
+        context['is_htmx'] = self.request.headers.get('HX-Request') == 'true'
+
         # Parse parameters from query string
         view_date = self._parse_view_date()
         direction = self.request.GET.get('direction', 'next')
@@ -197,6 +210,8 @@ class CalendarGridPartial(LoginRequiredMixin, TemplateView):
             'today': date.today(),
             'direction': direction,
             'view_mode': 'week',
+            'employees': User.objects.all(),
+            'departments': Department.objects.all(),
         }
 
     def _build_month_context(
@@ -242,6 +257,8 @@ class CalendarGridPartial(LoginRequiredMixin, TemplateView):
             'direction': direction,
             'view_mode': 'month',
             'day_names': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            'employees': User.objects.all(),
+            'departments': Department.objects.all(),
         }
 
     def _parse_view_date(self) -> date:
@@ -258,3 +275,409 @@ class CalendarGridPartial(LoginRequiredMixin, TemplateView):
             except ValueError:
                 pass
         return date.today()
+
+
+# =============================================================================
+# Shift CRUD Views
+# =============================================================================
+
+
+class ShiftFormPartial(ManagerRequiredMixin, TemplateView):
+    """
+    HTMX partial view for rendering the shift creation modal.
+
+    Provides a shift creation form with the date pre-filled from query parameters.
+    Used to dynamically load the form into the global modal via HTMX when clicking
+    "Add Shift" buttons on day cells.
+
+    Query Parameters:
+        date (str, optional): Date in YYYY-MM-DD format to pre-fill the date field.
+
+    Context Variables:
+        form_date: The date for the new shift (date object).
+        employees: QuerySet of all User objects for employee selection.
+        departments: QuerySet of all Department objects.
+    """
+
+    template_name = 'modals/shift_create.html'
+
+    def get_context_data(self, **kwargs):
+        """Build context with form date and related data."""
+        context = super().get_context_data(**kwargs)
+
+        # Get initial date from query parameter
+        date_str = self.request.GET.get('date')
+        if date_str:
+            try:
+                context['form_date'] = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                context['form_date'] = date.today()
+        else:
+            context['form_date'] = date.today()
+
+        context['employees'] = User.objects.all()
+        context['departments'] = Department.objects.all()
+        context['form'] = ShiftForm()
+
+        return context
+
+
+class PublishConfirmView(ManagerRequiredMixin, TemplateView):
+    """Render the publish confirmation modal."""
+    template_name = 'modals/publish_confirm.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['start_date'] = self.request.GET.get('start')
+        context['end_date'] = self.request.GET.get('end')
+        return context
+
+
+class ShiftCreateView(ManagerRequiredMixin, CreateView):
+    """
+    View for creating new shifts.
+
+    Handles POST requests to create a new shift. On success, returns an
+    HTMX response with appropriate triggers for frontend updates.
+
+    Attributes:
+        model: Shift model.
+        form_class: ShiftForm for validation.
+        template_name: Partial template for form rendering.
+
+    HTMX Response:
+        On success, returns HttpResponse with HX-Trigger header containing
+        'shift-created' event to notify frontend of the new shift.
+    """
+
+    model = Shift
+    form_class = ShiftForm
+    template_name = 'scheduling/partials/shift_form.html'
+
+    def get_context_data(self, **kwargs):
+        """Add employees and departments to context."""
+        context = super().get_context_data(**kwargs)
+        context['employees'] = User.objects.all()
+        context['departments'] = Department.objects.all()
+        return context
+
+    def form_valid(self, form):
+        """
+        Handle valid form submission.
+
+        Sets the created_by field to the current user before saving,
+        then returns an HTMX response with a trigger event.
+        Sends email notification if shift is published on creation.
+        """
+        form.instance.created_by = self.request.user
+        self.object = form.save()
+
+        # Send email if shift is published on creation
+        if self.object.published:
+            EmailService.send_shift_assigned(self.object)
+
+        # Render single shift card
+        html = render_to_string(
+            'scheduling/partials/shift_card.html',
+            {'shift': self.object},
+            request=self.request
+        )
+
+        response = HttpResponse(html)
+        # Close modal via server-side trigger and signal calendar refresh
+        response['HX-Trigger'] = 'closeModal, shiftCreated'
+        return response
+
+    def form_invalid(self, form):
+        """
+        Handle invalid form submission for HTMX requests.
+
+        Re-renders the modal template with form errors so users
+        can see validation messages and correct their input.
+        """
+        context = self.get_context_data(form=form)
+        context['form_date'] = self.request.POST.get('date')
+
+        html = render_to_string(
+            'modals/shift_create.html',
+            context,
+            request=self.request
+        )
+        return HttpResponse(html)
+
+
+class ShiftDetailView(LoginRequiredMixin, DetailView):
+    """
+    View for displaying shift details.
+
+    Shows detailed information about a specific shift. Available to
+    all authenticated users, with is_manager flag in context for
+    conditional rendering of edit/delete actions.
+
+    Attributes:
+        model: Shift model.
+        template_name: Modal template for shift details.
+
+    Context Variables:
+        object: The Shift instance.
+        is_manager: Boolean indicating if current user is a manager.
+    """
+
+    model = Shift
+    template_name = 'modals/shift_detail.html'
+
+    def get_context_data(self, **kwargs):
+        """Add is_manager flag to context."""
+        context = super().get_context_data(**kwargs)
+        context['is_manager'] = self.request.user.is_manager
+        return context
+
+
+class ShiftUpdateView(ManagerRequiredMixin, UpdateView):
+    """
+    View for editing existing shifts.
+
+    Handles GET requests to display the edit form and POST requests
+    to save changes. On success, dispatches a 'close-modal' event
+    and returns the updated shift card HTML.
+
+    Attributes:
+        model: Shift model.
+        form_class: ShiftForm for validation.
+        template_name: Modal template for shift editing.
+
+    HTMX Response:
+        On success, returns updated shift card HTML with HX-Trigger
+        header containing 'close-modal' event.
+    """
+
+    model = Shift
+    form_class = ShiftForm
+    template_name = 'modals/shift_edit.html'
+
+    def get_context_data(self, **kwargs):
+        """Add employees and departments to context."""
+        context = super().get_context_data(**kwargs)
+        context['employees'] = User.objects.all()
+        context['departments'] = Department.objects.all()
+        return context
+
+    def form_valid(self, form):
+        """
+        Handle valid form submission.
+
+        Captures old shift data before saving, saves the updated shift,
+        sends email notification if shift is/was published, and returns
+        an HTMX response with the updated shift card and a close-modal trigger.
+        """
+        # Capture old data before save for email notification
+        old_data = {
+            'date': self.object.date,
+            'start_time': self.object.start_time,
+            'end_time': self.object.end_time,
+        }
+        was_published = self.object.published
+
+        self.object = form.save()
+
+        # Send email if shift is/was published
+        if self.object.published or was_published:
+            EmailService.send_shift_changed(self.object, old_data)
+
+        # Render the updated shift card
+        html = render_to_string(
+            'scheduling/partials/shift_card.html',
+            {'shift': self.object},
+            request=self.request
+        )
+
+        response = HttpResponse(html)
+        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        return response
+
+    def form_invalid(self, form):
+        """Handle invalid form submission - re-render edit modal with errors."""
+        context = self.get_context_data(form=form)
+        html = render_to_string(
+            'modals/shift_edit.html',
+            context,
+            request=self.request
+        )
+        return HttpResponse(html)
+
+
+class ShiftDeleteView(ManagerRequiredMixin, DeleteView):
+    """
+    View for deleting shifts.
+
+    Handles POST requests to delete a shift. No confirmation template
+    is used; deletion is handled directly via POST.
+
+    Attributes:
+        model: Shift model.
+
+    HTMX Response:
+        On success, returns empty HttpResponse with 200 status and
+        HX-Trigger header containing 'shift-deleted' event.
+    """
+
+    model = Shift
+    template_name = 'modals/confirm_delete.html'
+
+    def delete(self, request, *args, **kwargs):
+        """Handle DELETE request by delegating to post()."""
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST request to delete the shift.
+
+        Captures shift data before deletion, sends email notification
+        if shift was published, then returns an empty response with
+        shift-deleted trigger for HTMX.
+        """
+        self.object = self.get_object()
+
+        # Capture data before deletion for email notification
+        was_published = self.object.published
+        shift_data = {
+            'employee_name': self.object.employee.get_full_name(),
+            'date': self.object.date,
+            'start_time': self.object.start_time,
+            'end_time': self.object.end_time,
+        }
+        employee_email = self.object.employee.email
+
+        self.object.delete()
+
+        # Send email if shift was published
+        if was_published:
+            EmailService.send_shift_deleted(employee_email, shift_data)
+
+        response = HttpResponse(status=200)
+        response['HX-Trigger'] = 'closeModal, shiftDeleted'
+        return response
+
+
+# =============================================================================
+# Shift Publishing Views
+# =============================================================================
+
+
+class PublishShiftsView(ManagerRequiredMixin, View):
+    """
+    Bulk publish shifts for a date range.
+
+    Allows managers to publish multiple unpublished shifts at once,
+    either by specifying a list of shift IDs or a date range.
+
+    POST Parameters:
+        shift_ids (list, optional): List of specific shift IDs to publish.
+        start_date (str): Start date in YYYY-MM-DD format (used if shift_ids not provided).
+        end_date (str): End date in YYYY-MM-DD format (used if shift_ids not provided).
+
+    HTMX Response:
+        Returns a success message with the count of published shifts.
+        Includes 'HX-Trigger: shifts-published' header for frontend updates.
+    """
+
+    def post(self, request):
+        """
+        Handle POST request to bulk publish shifts.
+
+        If shift_ids are provided, publishes those specific shifts.
+        Otherwise, publishes all unpublished shifts in the date range.
+        After publishing, sends weekly schedule emails to affected employees.
+        """
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        shift_ids = request.POST.getlist('shift_ids')
+
+        if shift_ids:
+            queryset = Shift.objects.filter(id__in=shift_ids, published=False)
+        else:
+            queryset = Shift.objects.filter(
+                date__gte=start_date,
+                date__lte=end_date,
+                published=False
+            )
+
+        # Capture shift IDs before update for email notifications
+        affected_shift_ids = list(queryset.values_list('id', flat=True))
+
+        count = queryset.update(published=True)
+
+        # Send emails to affected employees if shifts were published
+        if count > 0 and affected_shift_ids:
+            # Re-fetch the now-published shifts with related data
+            published_shifts = Shift.objects.filter(
+                id__in=affected_shift_ids
+            ).select_related('employee')
+
+            # Group shifts by employee
+            shifts_by_employee = {}
+            employees = set()
+            for shift in published_shifts:
+                employees.add(shift.employee)
+                if shift.employee.id not in shifts_by_employee:
+                    shifts_by_employee[shift.employee.id] = []
+                shifts_by_employee[shift.employee.id].append(shift)
+
+            # Determine date range for email subject
+            if published_shifts:
+                all_dates = [s.date for s in published_shifts]
+                email_start_date = min(all_dates)
+                email_end_date = max(all_dates)
+
+                EmailService.send_week_published(
+                    list(employees),
+                    email_start_date,
+                    email_end_date,
+                    shifts_by_employee
+                )
+
+        response = HttpResponse(f'{count} shift{"s" if count != 1 else ""} published')
+        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        return response
+
+
+class ShiftPublishToggleView(ManagerRequiredMixin, View):
+    """
+    Toggle the published status of a single shift.
+
+    Allows managers to quickly publish or unpublish individual shifts
+    directly from the shift card without opening a modal.
+
+    URL Parameters:
+        pk (int): Primary key of the shift to toggle.
+
+    HTMX Response:
+        Returns the updated shift card HTML for in-place replacement.
+        Includes 'HX-Trigger: shift-toggled' header for frontend updates.
+    """
+
+    def post(self, request, pk):
+        """
+        Handle POST request to toggle shift published status.
+
+        Flips the published boolean, sends email notification if
+        toggling to published, and returns the updated shift card.
+        """
+        shift = get_object_or_404(Shift, pk=pk)
+        was_published = shift.published
+        shift.published = not shift.published
+        shift.save(update_fields=['published'])
+
+        # Send email if toggled to published
+        if shift.published and not was_published:
+            EmailService.send_shift_assigned(shift)
+
+        html = render_to_string(
+            'scheduling/partials/shift_card.html',
+            {'shift': shift, 'is_manager': request.user.is_manager},
+            request=request
+        )
+
+        response = HttpResponse(html)
+        response['HX-Trigger'] = 'closeModal, shiftUpdated'
+        return response

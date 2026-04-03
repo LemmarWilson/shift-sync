@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f3f4f6; }
+    .container { max-width: 600px; margin: 0 auto; background: white; }
+    .header { background: #6366f1; color: white; padding: 24px; text-align: center; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .content { padding: 24px; color: #374151; line-height: 1.6; }
+    .shift-card { background: #f9fafb; border-left: 4px solid #6366f1; padding: 16px; margin: 16px 0; border-radius: 0 8px 8px 0; }
+    .shift-date { font-weight: 600; color: #111827; font-size: 18px; margin-bottom: 8px; }
+    .shift-time { color: #6366f1; font-weight: 500; }
+    .shift-notes { color: #6b7280; font-size: 14px; margin-top: 8px; }
+    .button { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; }
+    .footer { padding: 16px; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #e5e7eb; }
+    .greeting { font-size: 16px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>ShiftSync</h1>
+    </div>
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+    <div class="footer">
+      This is an automated message from ShiftSync. Please do not reply to this email.
+    </div>
+  </div>
+</body>
+</html>

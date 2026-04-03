@@ -7,13 +7,21 @@ filtering, and transformation for calendar and scheduling operations.
 """
 
 import calendar
+import logging
 from collections import defaultdict
 from datetime import date, timedelta
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
+from django.core.mail import send_mail
 from django.db.models import Q
+from django.template.loader import render_to_string
 
 from .models import DayOffRequest, Shift, User
+
+if TYPE_CHECKING:
+    from .models import Shift as ShiftType
+
+logger = logging.getLogger(__name__)
 
 
 class CalendarService:
@@ -233,3 +241,192 @@ class CalendarService:
                 current_date += timedelta(days=1)
 
         return dict(day_offs_by_date)
+
+
+class EmailService:
+    """
+    Service class for sending shift-related email notifications.
+
+    Provides static methods for sending templated HTML emails to employees
+    when their shifts are created, modified, deleted, or when weekly
+    schedules are published. All methods handle exceptions gracefully
+    and return success/failure status.
+    """
+
+    @staticmethod
+    def send_shift_assigned(shift: 'ShiftType') -> bool:
+        """
+        Send notification when a shift is assigned and published.
+
+        Args:
+            shift: The Shift instance that was assigned to an employee.
+
+        Returns:
+            True if the email was sent successfully, False otherwise.
+
+        Example:
+            >>> shift = Shift.objects.get(pk=1)
+            >>> EmailService.send_shift_assigned(shift)
+            True
+        """
+        subject = f"New Shift: {shift.date.strftime('%A, %B %d')}"
+        context = {
+            'employee_name': shift.employee.first_name,
+            'shift': shift,
+            'date_formatted': shift.date.strftime('%A, %B %d, %Y'),
+            'time_range': f"{shift.start_time.strftime('%I:%M %p')} - {shift.end_time.strftime('%I:%M %p')}",
+        }
+        return EmailService._send_email(
+            subject, 'emails/shift_assigned.html', context, [shift.employee.email]
+        )
+
+    @staticmethod
+    def send_shift_changed(shift: 'ShiftType', old_data: dict) -> bool:
+        """
+        Send notification when a published shift is modified.
+
+        Args:
+            shift: The Shift instance after modification.
+            old_data: Dictionary containing previous shift data with keys:
+                      'date', 'start_time', 'end_time'.
+
+        Returns:
+            True if the email was sent successfully, False otherwise.
+
+        Example:
+            >>> shift = Shift.objects.get(pk=1)
+            >>> old_data = {'date': '2024-03-12', 'start_time': '09:00', 'end_time': '17:00'}
+            >>> EmailService.send_shift_changed(shift, old_data)
+            True
+        """
+        subject = f"Shift Updated: {shift.date.strftime('%A, %B %d')}"
+        context = {
+            'employee_name': shift.employee.first_name,
+            'shift': shift,
+            'old_data': old_data,
+            'date_formatted': shift.date.strftime('%A, %B %d, %Y'),
+            'time_range': f"{shift.start_time.strftime('%I:%M %p')} - {shift.end_time.strftime('%I:%M %p')}",
+        }
+        return EmailService._send_email(
+            subject, 'emails/shift_changed.html', context, [shift.employee.email]
+        )
+
+    @staticmethod
+    def send_shift_deleted(employee_email: str, shift_data: dict) -> bool:
+        """
+        Send notification when a shift is deleted/cancelled.
+
+        Args:
+            employee_email: Email address of the affected employee.
+            shift_data: Dictionary containing deleted shift information with keys:
+                        'date' (date object), 'start_time' (time object),
+                        'end_time' (time object), 'employee_name' (str, optional).
+
+        Returns:
+            True if the email was sent successfully, False otherwise.
+
+        Example:
+            >>> shift_data = {
+            ...     'date': date(2024, 3, 12),
+            ...     'start_time': time(9, 0),
+            ...     'end_time': time(17, 0),
+            ...     'employee_name': 'John'
+            ... }
+            >>> EmailService.send_shift_deleted('john@example.com', shift_data)
+            True
+        """
+        subject = f"Shift Cancelled: {shift_data['date'].strftime('%A, %B %d')}"
+        context = {
+            'employee_name': shift_data.get('employee_name', 'Employee'),
+            'shift_data': shift_data,
+        }
+        return EmailService._send_email(
+            subject, 'emails/shift_deleted.html', context, [employee_email]
+        )
+
+    @staticmethod
+    def send_week_published(
+        employees: list,
+        week_start: date,
+        week_end: date,
+        shifts_by_employee: dict,
+    ) -> int:
+        """
+        Send weekly schedule to all affected employees.
+
+        Iterates through all employees who have shifts in the published week
+        and sends each a personalized email with their schedule.
+
+        Args:
+            employees: List of User instances to notify.
+            week_start: The Monday of the published week.
+            week_end: The Sunday of the published week.
+            shifts_by_employee: Dictionary mapping employee IDs to lists of Shift instances.
+
+        Returns:
+            The count of successfully sent emails.
+
+        Example:
+            >>> employees = User.objects.filter(role='employee')
+            >>> shifts_by_employee = {1: [shift1, shift2], 2: [shift3]}
+            >>> EmailService.send_week_published(
+            ...     employees, date(2024, 3, 11), date(2024, 3, 17), shifts_by_employee
+            ... )
+            2
+        """
+        sent_count = 0
+        for employee in employees:
+            employee_shifts = shifts_by_employee.get(employee.id, [])
+            if employee_shifts:
+                subject = (
+                    f"Your Schedule: {week_start.strftime('%b %d')} - "
+                    f"{week_end.strftime('%b %d')}"
+                )
+                context = {
+                    'employee_name': employee.first_name,
+                    'week_start': week_start,
+                    'week_end': week_end,
+                    'shifts': employee_shifts,
+                }
+                if EmailService._send_email(
+                    subject, 'emails/week_published.html', context, [employee.email]
+                ):
+                    sent_count += 1
+        return sent_count
+
+    @staticmethod
+    def _send_email(
+        subject: str,
+        template: str,
+        context: dict,
+        recipients: list,
+    ) -> bool:
+        """
+        Internal helper to send templated HTML emails.
+
+        Renders the specified template with the given context and sends it
+        as an HTML email. Falls back to a plain text message for email
+        clients that don't support HTML.
+
+        Args:
+            subject: Email subject line.
+            template: Path to the Django template to render.
+            context: Context dictionary for template rendering.
+            recipients: List of recipient email addresses.
+
+        Returns:
+            True if the email was sent successfully, False otherwise.
+        """
+        try:
+            html_message = render_to_string(template, context)
+            send_mail(
+                subject=subject,
+                message='Please view this email in HTML format.',
+                from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings
+                recipient_list=recipients,
+                html_message=html_message,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send email to {recipients}: {e}")
+            return False
