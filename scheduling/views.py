@@ -433,9 +433,13 @@ class ShiftDetailView(LoginRequiredMixin, DetailView):
     template_name = 'modals/shift_detail.html'
 
     def get_context_data(self, **kwargs):
-        """Add is_manager flag to context."""
+        """Add ownership and permission flags to context."""
         context = super().get_context_data(**kwargs)
-        context['is_manager'] = self.request.user.is_manager
+        user = self.request.user
+        shift = self.object
+        context['is_manager'] = user.is_manager
+        context['is_own_shift'] = (shift.employee_id == user.id)
+        context['can_view_full_details'] = user.is_manager or context['is_own_shift']
         return context
 
 
@@ -789,17 +793,24 @@ class DayOffRequestDetailView(LoginRequiredMixin, DetailView):
         """
         Build the queryset for day-off request detail.
 
-        Managers can view any request; employees can only view their own.
+        Managers can view any request; employees can view their own plus
+        others' approved requests.
         """
+        from django.db.models import Q
+
         queryset = DayOffRequest.objects.select_related('employee', 'reviewed_by')
         if not self.request.user.is_manager:
-            queryset = queryset.filter(employee=self.request.user)
+            # Employees can view their own + others' approved
+            queryset = queryset.filter(
+                Q(employee=self.request.user) | Q(status=DayOffRequest.Status.APPROVED)
+            )
         return queryset
 
     def get_context_data(self, **kwargs):
-        """Add is_manager flag to context."""
+        """Add ownership and permission flags to context."""
         context = super().get_context_data(**kwargs)
         context['is_manager'] = self.request.user.is_manager
+        context['is_own_request'] = (self.object.employee_id == self.request.user.id)
         return context
 
 

@@ -4,8 +4,17 @@
         <div class="flex items-center space-x-3">
             <div class="w-3 h-3 rounded-full" style="background-color: {{ shift.employee.color }};"></div>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ shift.employee.get_full_name|default:shift.employee.username }}
+                {% if is_own_shift %}
+                My Shift
+                {% else %}
+                {{ shift.employee.get_full_name|default:shift.employee.username }}'s Shift
+                {% endif %}
             </h2>
+            {% if is_own_shift %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                My Shift
+            </span>
+            {% endif %}
         </div>
         <button @click="$dispatch('close-modal')"
                 class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -14,6 +23,18 @@
             </svg>
         </button>
     </div>
+
+    <!-- Ownership Info for Non-Owners -->
+    {% if not is_own_shift and not is_manager %}
+    <div class="mb-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+            <span>This is <strong class="text-gray-900 dark:text-white">{{ shift.employee.get_full_name|default:shift.employee.username }}</strong>'s shift</span>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Content sections wrapper -->
     <div class="space-y-4">
@@ -33,10 +54,15 @@
             <span class="text-gray-900 dark:text-white font-medium">{{ shift.department.name }}</span>
         </div>
         {% endif %}
-        {% if shift.notes %}
+        {% if shift.notes and can_view_full_details %}
         <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
             <span class="text-gray-500 dark:text-gray-400 block mb-1">Notes</span>
             <p class="text-gray-900 dark:text-white">{{ shift.notes }}</p>
+        </div>
+        {% elif shift.notes and not can_view_full_details %}
+        <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <span class="text-gray-500 dark:text-gray-400 block mb-1">Notes</span>
+            <p class="text-gray-400 dark:text-gray-500 italic text-xs">Notes are only visible to the shift owner and managers</p>
         </div>
         {% endif %}
     </div>

@@ -1,4 +1,9 @@
-<div class="shift-card bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 p-3 cursor-pointer hover:shadow-md transition-shadow"
+<div class="shift-card rounded-lg shadow-sm p-3 cursor-pointer transition-all
+            {% if shift.is_own %}
+            bg-white dark:bg-gray-700 border border-solid border-gray-200 dark:border-gray-600 hover:shadow-md
+            {% else %}
+            bg-gray-50 dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 opacity-60 hover:opacity-80
+            {% endif %}"
      style="border-left: 4px solid {{ shift.employee.color }};"
      id="shift-{{ shift.id }}"
      hx-get="{% url 'scheduling:shift_detail' pk=shift.pk %}"
@@ -6,12 +11,17 @@
      hx-trigger="click"
      @htmx:after-request="$dispatch('open-modal')">
 
-    <!-- Employee Name -->
+    <!-- Employee Name with "Me" Badge -->
     <div class="flex items-center space-x-2 mb-1">
         <div class="w-2 h-2 rounded-full" style="background-color: {{ shift.employee.color }};"></div>
         <span class="text-sm font-medium text-gray-900 dark:text-white truncate">
             {{ shift.employee.get_full_name|default:shift.employee.username }}
         </span>
+        {% if shift.is_own %}
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+            Me
+        </span>
+        {% endif %}
     </div>
 
     <!-- Time Range -->

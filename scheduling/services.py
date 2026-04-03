@@ -179,9 +179,10 @@ class CalendarService:
             )
         # If user is a manager (and not published_only), they see all shifts
 
-        # Group shifts by date
+        # Group shifts by date and add ownership flag
         shifts_by_date: dict[date, list[Shift]] = defaultdict(list)
         for shift in queryset.order_by('date', 'start_time'):
+            shift.is_own = (user is not None and shift.employee_id == user.id)
             shifts_by_date[shift.date].append(shift)
 
         return dict(shifts_by_date)
@@ -226,10 +227,21 @@ class CalendarService:
             end_date__gte=start_date,
         ).select_related('employee')
 
+        # Apply visibility filters based on user role
+        # Managers see all approved + pending; employees see their own (pending + approved)
+        # plus others' APPROVED only
+        if user is not None and not user.is_manager:
+            queryset = queryset.filter(
+                Q(employee=user, status__in=[DayOffRequest.Status.APPROVED, DayOffRequest.Status.PENDING])
+                | Q(status=DayOffRequest.Status.APPROVED)
+            ).distinct()
+
         # Group by individual dates within the range
         day_offs_by_date: dict[date, list[DayOffRequest]] = defaultdict(list)
 
         for request in queryset:
+            # Add ownership flag
+            request.is_own = (user is not None and request.employee_id == user.id)
             # Calculate the overlap between request dates and query range
             effective_start = max(request.start_date, start_date)
             effective_end = min(request.end_date, end_date)
@@ -309,6 +321,45 @@ class EmailService:
         }
         return EmailService._send_email(
             subject, 'emails/shift_changed.html', context, [shift.employee.email]
+        )
+
+    @staticmethod
+    def send_shift_reminder(shift: 'ShiftType') -> bool:
+        """
+        Send a reminder email for an upcoming shift.
+
+        Sends a friendly reminder to the employee about their shift
+        scheduled for tomorrow.
+
+        Args:
+            shift: The Shift instance to send a reminder for.
+
+        Returns:
+            True if the email was sent successfully, False otherwise.
+
+        Example:
+            >>> shift = Shift.objects.get(pk=1)
+            >>> EmailService.send_shift_reminder(shift)
+            True
+        """
+        if not shift.employee.email:
+            logger.warning(
+                f"Cannot send shift reminder: employee {shift.employee} has no email"
+            )
+            return False
+
+        subject = f"Reminder: You work tomorrow at {shift.start_time.strftime('%I:%M %p')}"
+        context = {
+            'employee_name': shift.employee.first_name or shift.employee.username,
+            'shift': shift,
+            'date_formatted': shift.date.strftime('%A, %B %d, %Y'),
+            'time_range': (
+                f"{shift.start_time.strftime('%I:%M %p')} - "
+                f"{shift.end_time.strftime('%I:%M %p')}"
+            ),
+        }
+        return EmailService._send_email(
+            subject, 'emails/shift_reminder.html', context, [shift.employee.email]
         )
 
     @staticmethod

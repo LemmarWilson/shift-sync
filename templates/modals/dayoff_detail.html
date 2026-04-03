@@ -1,7 +1,20 @@
 <div class="p-6">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Day-Off Request</h2>
+        <div class="flex items-center space-x-3">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {% if is_own_request %}
+                My Day-Off Request
+                {% else %}
+                Day-Off Request
+                {% endif %}
+            </h2>
+            {% if is_own_request %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                My Day Off
+            </span>
+            {% endif %}
+        </div>
         <button @click="$dispatch('close-modal')"
                 class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,7 +42,8 @@
 
     <!-- Details -->
     <div class="space-y-4">
-        {% if is_manager %}
+        <!-- Employee info: shown if manager OR viewing someone else's request -->
+        {% if is_manager or not is_own_request %}
         <div>
             <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Employee</label>
             <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ dayoff.employee.get_full_name|default:dayoff.employee.username }}</p>
@@ -46,11 +60,19 @@
             </p>
         </div>
 
+        <!-- Reason: only shown to owner or manager -->
         {% if dayoff.reason %}
-        <div>
-            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Reason</label>
-            <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ dayoff.reason }}</p>
-        </div>
+            {% if is_own_request or is_manager %}
+            <div>
+                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Reason</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ dayoff.reason }}</p>
+            </div>
+            {% else %}
+            <div>
+                <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Reason</label>
+                <p class="mt-1 text-gray-400 dark:text-gray-500 italic text-xs">Reason is only visible to the requester and managers</p>
+            </div>
+            {% endif %}
         {% endif %}
 
         <div>
@@ -98,8 +120,8 @@
                     Close
                 </button>
             </div>
-            {% else %}
-            <!-- Employee Action: Edit or Cancel own request -->
+            {% elif is_own_request %}
+            <!-- Owner Action: Edit or Cancel own request (only if they own it) -->
             <div class="flex justify-between items-center">
                 <div class="flex space-x-2">
                     <button hx-get="{% url 'scheduling:dayoff_edit' pk=dayoff.pk %}"
@@ -120,6 +142,14 @@
                         <span>Cancel Request</span>
                     </button>
                 </div>
+                <button @click="$dispatch('close-modal')"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Close
+                </button>
+            </div>
+            {% else %}
+            <!-- Non-owner viewing someone else's pending request: just Close -->
+            <div class="flex justify-end">
                 <button @click="$dispatch('close-modal')"
                         class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     Close
