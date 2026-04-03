@@ -1,0 +1,110 @@
+<!-- Notification Bell Dropdown Component -->
+<!-- Loaded via HTMX polling every 30 seconds -->
+<div x-data="{ open: false }" class="relative">
+    <!-- Bell Button -->
+    <button @click="open = !open"
+            class="relative p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+        <!-- Bell Icon -->
+        <svg class="w-6 h-6 {% if unread_count > 0 %}animate-shake{% endif %}"
+             fill="none"
+             stroke="currentColor"
+             viewBox="0 0 24 24">
+            <path stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+        </svg>
+
+        <!-- Unread Count Badge -->
+        {% if unread_count > 0 %}
+        <span class="absolute top-0.5 right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-500 rounded-full">
+            {% if unread_count > 99 %}99+{% else %}{{ unread_count }}{% endif %}
+        </span>
+        {% endif %}
+    </button>
+
+    <!-- Dropdown Panel -->
+    <div x-show="open"
+         @click.away="open = false"
+         x-transition:enter="transition ease-out duration-100"
+         x-transition:enter-start="transform opacity-0 scale-95"
+         x-transition:enter-end="transform opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-75"
+         x-transition:leave-start="transform opacity-100 scale-100"
+         x-transition:leave-end="transform opacity-0 scale-95"
+         x-cloak
+         class="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+            {% if unread_count > 0 %}
+            <button hx-post="{% url 'scheduling:notification_mark_read' %}"
+                    hx-swap="none"
+                    hx-trigger="click"
+                    hx-on::after-request="htmx.trigger(document.body, 'notificationsRead')"
+                    class="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">
+                Mark all read
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- Notifications List -->
+        <div class="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+            {% if notifications %}
+                {% for notification in notifications %}
+                <a href="{% url 'scheduling:notification_click' pk=notification.pk %}"
+                   class="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {% if not notification.read %}bg-indigo-50/50 dark:bg-indigo-900/20{% endif %}">
+                    <div class="flex items-start space-x-3">
+                        <!-- Unread Indicator -->
+                        <div class="flex-shrink-0 mt-1">
+                            {% if not notification.read %}
+                            <span class="block w-2 h-2 bg-indigo-500 rounded-full"></span>
+                            {% else %}
+                            <span class="block w-2 h-2"></span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Content -->
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm {% if not notification.read %}font-medium text-gray-900 dark:text-white{% else %}text-gray-600 dark:text-gray-400{% endif %}">
+                                {{ notification.message }}
+                            </p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                                {{ notification.created_at|timesince }} ago
+                            </p>
+                        </div>
+
+                        <!-- Arrow Icon (if has link) -->
+                        {% if notification.link %}
+                        <div class="flex-shrink-0 text-gray-400 dark:text-gray-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </div>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <!-- Empty State -->
+                <div class="px-4 py-8 text-center">
+                    <svg class="mx-auto h-10 w-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">No notifications</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer -->
+        {% if notifications %}
+        <div class="border-t border-gray-200 dark:border-gray-700">
+            <a href="{% url 'scheduling:notification_list' %}"
+               class="block px-4 py-3 text-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                View all notifications
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>

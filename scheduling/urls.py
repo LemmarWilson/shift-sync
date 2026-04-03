@@ -136,4 +136,38 @@ urlpatterns = [
         views.DayOffFormPartial.as_view(),
         name='dayoff_form_partial',
     ),
+    path(
+        'partials/dayoff-list/',
+        views.DayOffRequestListPartial.as_view(),
+        name='dayoff_list_partial',
+    ),
+
+    # Notification endpoints
+    path(
+        'notifications/',
+        views.NotificationListView.as_view(),
+        name='notification_list',
+    ),
+    path(
+        'notifications/<int:pk>/click/',
+        views.NotificationClickView.as_view(),
+        name='notification_click',
+    ),
+    path(
+        'notifications/mark-read/',
+        views.MarkNotificationsReadView.as_view(),
+        name='notification_mark_read',
+    ),
+    path(
+        'notifications/count/',
+        views.NotificationCountView.as_view(),
+        name='notification_count',
+    ),
+
+    # HTMX partial endpoints - Notifications
+    path(
+        'partials/notification-bell/',
+        views.NotificationBellPartial.as_view(),
+        name='notification_bell_partial',
+    ),
 ]

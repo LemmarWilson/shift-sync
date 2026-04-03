@@ -16,7 +16,7 @@ from django.core.mail import send_mail
 from django.db.models import Q
 from django.template.loader import render_to_string
 
-from .models import DayOffRequest, Shift, User
+from .models import DayOffRequest, Notification, Shift, User
 
 if TYPE_CHECKING:
     from .models import Shift as ShiftType
@@ -549,3 +549,139 @@ class EmailService:
             context,
             [dayoff_request.employee.email]
         )
+
+
+class NotificationService:
+    """
+    Service class for managing in-app notifications.
+
+    Provides static methods for creating notifications, retrieving unread counts,
+    fetching recent notifications, and marking notifications as read. All methods
+    handle exceptions gracefully and return appropriate default values on failure.
+    """
+
+    @staticmethod
+    def create(recipient: 'User', message: str, link: str = '') -> bool:
+        """
+        Create a new notification for a user.
+
+        Args:
+            recipient: The User who will receive the notification.
+            message: The notification message content.
+            link: Optional URL to related content.
+
+        Returns:
+            True if the notification was created successfully, False otherwise.
+
+        Example:
+            >>> user = User.objects.get(pk=1)
+            >>> NotificationService.create(user, "Your shift was updated", "/shifts/1/")
+            True
+        """
+        try:
+            Notification.objects.create(
+                recipient=recipient,
+                message=message,
+                link=link
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create notification for {recipient}: {e}")
+            return False
+
+    @staticmethod
+    def get_unread_count(user: 'User') -> int:
+        """
+        Get the count of unread notifications for a user.
+
+        Args:
+            user: The User to check for unread notifications.
+
+        Returns:
+            The number of unread notifications, or 0 on error.
+
+        Example:
+            >>> user = User.objects.get(pk=1)
+            >>> NotificationService.get_unread_count(user)
+            3
+        """
+        try:
+            return Notification.objects.filter(recipient=user, read=False).count()
+        except Exception as e:
+            logger.error(f"Failed to get unread count for {user}: {e}")
+            return 0
+
+    @staticmethod
+    def get_recent(user: 'User', limit: int = 5) -> list:
+        """
+        Get recent notifications for a user.
+
+        Args:
+            user: The User to fetch notifications for.
+            limit: Maximum number of notifications to return (default 5).
+
+        Returns:
+            A list of Notification instances ordered by creation date (newest first),
+            or an empty list on error.
+
+        Example:
+            >>> user = User.objects.get(pk=1)
+            >>> notifications = NotificationService.get_recent(user, limit=10)
+            >>> len(notifications) <= 10
+            True
+        """
+        try:
+            return list(Notification.objects.filter(recipient=user).order_by('-created_at')[:limit])
+        except Exception as e:
+            logger.error(f"Failed to get recent notifications for {user}: {e}")
+            return []
+
+    @staticmethod
+    def mark_all_read(user: 'User') -> bool:
+        """
+        Mark all notifications as read for a user.
+
+        Args:
+            user: The User whose notifications should be marked as read.
+
+        Returns:
+            True if the operation was successful, False otherwise.
+
+        Example:
+            >>> user = User.objects.get(pk=1)
+            >>> NotificationService.mark_all_read(user)
+            True
+        """
+        try:
+            Notification.objects.filter(recipient=user, read=False).update(read=True)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to mark notifications read for {user}: {e}")
+            return False
+
+    @staticmethod
+    def mark_as_read(notification_id: int, user: 'User') -> bool:
+        """
+        Mark a specific notification as read.
+
+        Only marks the notification if it belongs to the specified user,
+        providing security against unauthorized access.
+
+        Args:
+            notification_id: The ID of the notification to mark as read.
+            user: The User who owns the notification.
+
+        Returns:
+            True if the operation was successful, False otherwise.
+
+        Example:
+            >>> user = User.objects.get(pk=1)
+            >>> NotificationService.mark_as_read(notification_id=42, user=user)
+            True
+        """
+        try:
+            Notification.objects.filter(id=notification_id, recipient=user).update(read=True)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to mark notification {notification_id} read: {e}")
+            return False

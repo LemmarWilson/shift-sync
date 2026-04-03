@@ -48,30 +48,13 @@
         </a>
     </div>
 
-    <!-- Requests List -->
-    <div id="requests-list" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {% if requests %}
-        <div class="divide-y divide-gray-200 dark:divide-gray-700">
-            {% for dayoff in requests %}
-                {% include 'scheduling/partials/request_row.html' with is_manager=is_manager %}
-            {% endfor %}
-        </div>
-        {% else %}
-        <!-- Empty State -->
-        <div class="p-12 text-center">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No requests</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {% if request.user.is_manager %}
-                No day-off requests to review.
-                {% else %}
-                Get started by creating a new time-off request.
-                {% endif %}
-            </p>
-        </div>
-        {% endif %}
+    <!-- Requests List (HTMX polled every 30s for auto-refresh) -->
+    <div id="requests-list"
+         hx-get="{% url 'scheduling:dayoff_list_partial' %}?status={{ current_status }}"
+         hx-trigger="every 30s"
+         hx-swap="innerHTML"
+         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {% include 'scheduling/partials/dayoff_list_content.html' %}
     </div>
 
     <!-- Global Modal Container -->
@@ -123,6 +106,11 @@
 
     // Refresh list when request is cancelled
     document.body.addEventListener('requestCancelled', function() {
+        window.location.reload();
+    });
+
+    // Refresh list when request status changes (approved/denied)
+    document.body.addEventListener('requestUpdated', function() {
         window.location.reload();
     });
     </script>
