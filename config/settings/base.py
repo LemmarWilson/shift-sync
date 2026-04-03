@@ -102,6 +102,16 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 AUTH_USER_MODEL = 'scheduling.User'
 
+# Authentication backends - email first, then username fallback
+AUTHENTICATION_BACKENDS = [
+    'scheduling.backends.EmailAuthenticationBackend',  # Authenticate by email
+    'django.contrib.auth.backends.ModelBackend',       # Fallback to username
+]
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'scheduling:calendar'
+LOGOUT_REDIRECT_URL = 'login'
+
 
 # =============================================================================
 # PASSWORD VALIDATION
