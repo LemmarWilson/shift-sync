@@ -4,7 +4,7 @@
      hx-target="#modal-content"
      hx-trigger="click"
      @htmx:after-request="$dispatch('open-modal')"
-     class="dayoff-card p-3 rounded-lg cursor-pointer transition-all
+     class="dayoff-card p-3 rounded-lg cursor-pointer transition-all min-h-[44px]
             {% if dayoff.is_own %}
             hover:shadow-md
             {% if dayoff.status == 'pending' %}

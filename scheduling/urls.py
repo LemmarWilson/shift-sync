@@ -28,10 +28,8 @@ app_name = 'scheduling'
 
 urlpatterns = [
     # Main calendar view - displays week containing current date
-    path('', views.CalendarView.as_view(), name='calendar'),
-
-    # Alternate URL for calendar (more explicit)
-    path('calendar/', views.CalendarView.as_view(), name='calendar_alt'),
+    # Note: Root URL (/) is handled by LandingView in config/urls.py
+    path('calendar/', views.CalendarView.as_view(), name='calendar'),
 
     # Calendar view for a specific date (YYYY-MM-DD format)
     path(

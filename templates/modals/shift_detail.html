@@ -17,7 +17,7 @@
             {% endif %}
         </div>
         <button @click="$dispatch('close-modal')"
-                class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                class="p-2 sm:p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -37,6 +37,7 @@
     {% endif %}
 
     <!-- Content sections wrapper -->
+    <div class="max-h-[60vh] overflow-y-auto">
     <div class="space-y-4">
     <!-- Details -->
     <div class="space-y-3 text-sm">
@@ -79,10 +80,12 @@
         </span>
         {% endif %}
     </div>
+    </div>
+    </div>
 
     <!-- Manager Actions -->
     {% if is_manager %}
-    <div class="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+    <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center pt-4 border-t border-gray-200 dark:border-gray-700">
         <!-- Publish/Unpublish Toggle -->
         <button hx-post="{% url 'scheduling:shift_toggle_publish' pk=shift.pk %}"
                 hx-swap="none"
@@ -108,7 +111,7 @@
         </button>
 
         <!-- Edit/Delete Actions -->
-        <div class="flex space-x-2">
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:gap-2">
             <button hx-get="{% url 'scheduling:shift_update' pk=shift.pk %}"
                     hx-target="#modal-content"
                     hx-swap="innerHTML"
