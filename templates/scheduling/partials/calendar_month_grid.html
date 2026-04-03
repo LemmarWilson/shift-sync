@@ -59,11 +59,25 @@
                 {% endwith %}
             </div>
 
-            <!-- Day-off indicator -->
+            <!-- Day-off tabs (similar style to shifts but different colors) -->
             {% with day_off_list=day_offs_by_date|get_item:day_date %}
-            {% if day_off_list %}
-            <div class="absolute top-1 right-1">
-                <span class="inline-block w-2 h-2 bg-amber-400 rounded-full" title="Day off"></span>
+            {% for dayoff in day_off_list|slice:":2" %}
+            <div x-data
+                 hx-get="{% url 'scheduling:dayoff_detail' pk=dayoff.pk %}"
+                 hx-target="#modal-content"
+                 hx-trigger="click"
+                 @htmx:after-request="$dispatch('open-modal')"
+                 @click.stop
+                 class="text-xs px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity mt-0.5
+                        {% if dayoff.status == 'pending' %}bg-amber-100 dark:bg-amber-900/30{% else %}bg-green-100 dark:bg-green-900/30{% endif %}">
+                <span class="{% if dayoff.status == 'pending' %}text-amber-700 dark:text-amber-300{% else %}text-green-700 dark:text-green-300{% endif %}">
+                    {{ dayoff.employee.first_name|default:dayoff.employee.username|truncatechars:6 }}
+                </span>
+            </div>
+            {% endfor %}
+            {% if day_off_list|length > 2 %}
+            <div class="text-xs text-amber-600 dark:text-amber-400 px-1">
+                +{{ day_off_list|length|add:"-2" }} off
             </div>
             {% endif %}
             {% endwith %}

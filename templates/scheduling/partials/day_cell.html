@@ -24,6 +24,13 @@
         {% endwith %}
     </div>
 
+    <!-- Day-Off Cards -->
+    {% with day_dayoffs=day_offs_by_date|get_item:day_date %}
+        {% for dayoff in day_dayoffs %}
+            {% include 'scheduling/partials/dayoff_card.html' with dayoff=dayoff %}
+        {% endfor %}
+    {% endwith %}
+
     <!-- Add Shift Button (Managers only, on hover) -->
     {% if user.is_manager %}
     <button hx-get="{% url 'scheduling:shift_form_partial' %}?date={{ day_date|date:'Y-m-d' }}"

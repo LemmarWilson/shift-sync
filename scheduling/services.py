@@ -193,9 +193,9 @@ class CalendarService:
         user: Optional[User] = None,
     ) -> dict[date, list[DayOffRequest]]:
         """
-        Retrieve approved day-off requests that overlap with a date range.
+        Retrieve approved and pending day-off requests that overlap with a date range.
 
-        For each approved request, includes all individual dates between the
+        For each approved or pending request, includes all individual dates between the
         request's start_date and end_date that fall within the query range.
 
         Args:
@@ -218,10 +218,10 @@ class CalendarService:
             >>> date(2024, 3, 12) in day_offs
             True
         """
-        # Find approved requests that overlap with the query range
+        # Find approved and pending requests that overlap with the query range
         # A request overlaps if: request.start_date <= end_date AND request.end_date >= start_date
         queryset = DayOffRequest.objects.filter(
-            status=DayOffRequest.Status.APPROVED,
+            status__in=[DayOffRequest.Status.APPROVED, DayOffRequest.Status.PENDING],
             start_date__lte=end_date,
             end_date__gte=start_date,
         ).select_related('employee')
@@ -430,3 +430,122 @@ class EmailService:
         except Exception as e:
             logger.error(f"Failed to send email to {recipients}: {e}")
             return False
+
+    @staticmethod
+    def send_dayoff_submitted(dayoff_request) -> bool:
+        """
+        Send notification to all managers when a day-off request is submitted.
+
+        Args:
+            dayoff_request: The DayOffRequest instance that was submitted.
+
+        Returns:
+            True if at least one email was sent successfully, False otherwise.
+
+        Example:
+            >>> request = DayOffRequest.objects.get(pk=1)
+            >>> EmailService.send_dayoff_submitted(request)
+            True
+        """
+        managers = User.objects.filter(role=User.Role.MANAGER)
+        employee_name = (
+            dayoff_request.employee.get_full_name()
+            or dayoff_request.employee.username
+        )
+
+        subject = f"New day-off request from {employee_name}"
+        context = {
+            'employee_name': employee_name,
+            'start_date': dayoff_request.start_date,
+            'end_date': dayoff_request.end_date,
+            'reason': dayoff_request.reason,
+        }
+
+        sent_count = 0
+        for manager in managers:
+            if manager.email:
+                if EmailService._send_email(
+                    subject,
+                    'emails/dayoff_submitted.html',
+                    context,
+                    [manager.email]
+                ):
+                    sent_count += 1
+
+        return sent_count > 0
+
+    @staticmethod
+    def send_dayoff_approved(dayoff_request, reviewer) -> bool:
+        """
+        Send notification to employee when their day-off request is approved.
+
+        Args:
+            dayoff_request: The DayOffRequest instance that was approved.
+            reviewer: The User who approved the request.
+
+        Returns:
+            True if the email was sent successfully, False otherwise.
+
+        Example:
+            >>> request = DayOffRequest.objects.get(pk=1)
+            >>> EmailService.send_dayoff_approved(request, manager_user)
+            True
+        """
+        if not dayoff_request.employee.email:
+            return False
+
+        subject = "Your day off was approved"
+        context = {
+            'employee_name': (
+                dayoff_request.employee.first_name
+                or dayoff_request.employee.username
+            ),
+            'start_date': dayoff_request.start_date,
+            'end_date': dayoff_request.end_date,
+            'reviewer_name': reviewer.get_full_name() or reviewer.username,
+        }
+
+        return EmailService._send_email(
+            subject,
+            'emails/dayoff_approved.html',
+            context,
+            [dayoff_request.employee.email]
+        )
+
+    @staticmethod
+    def send_dayoff_denied(dayoff_request, reviewer) -> bool:
+        """
+        Send notification to employee when their day-off request is denied.
+
+        Args:
+            dayoff_request: The DayOffRequest instance that was denied.
+            reviewer: The User who denied the request.
+
+        Returns:
+            True if the email was sent successfully, False otherwise.
+
+        Example:
+            >>> request = DayOffRequest.objects.get(pk=1)
+            >>> EmailService.send_dayoff_denied(request, manager_user)
+            True
+        """
+        if not dayoff_request.employee.email:
+            return False
+
+        subject = "Your day-off request was not approved"
+        context = {
+            'employee_name': (
+                dayoff_request.employee.first_name
+                or dayoff_request.employee.username
+            ),
+            'start_date': dayoff_request.start_date,
+            'end_date': dayoff_request.end_date,
+            'reviewer_name': reviewer.get_full_name() or reviewer.username,
+        }
+
+        return EmailService._send_email(
+            subject,
+            'emails/dayoff_denied.html',
+            context,
+            [dayoff_request.employee.email]
+        )

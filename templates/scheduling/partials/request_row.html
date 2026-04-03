@@ -1,0 +1,109 @@
+<div id="request-{{ dayoff.pk }}"
+     class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+     x-data
+     hx-get="{% url 'scheduling:dayoff_detail' pk=dayoff.pk %}"
+     hx-target="#modal-content"
+     hx-trigger="click"
+     @htmx:after-request="$dispatch('open-modal')">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <!-- Left side: Info -->
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-3">
+                {% if is_manager %}
+                <div class="flex-shrink-0">
+                    <div class="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                         style="background-color: {{ dayoff.employee.color|default:'#6366f1' }};">
+                        {{ dayoff.employee.first_name|slice:":1"|upper }}{{ dayoff.employee.last_name|slice:":1"|upper }}
+                    </div>
+                </div>
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                    {% if is_manager %}
+                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {{ dayoff.employee.get_full_name|default:dayoff.employee.username }}
+                    </p>
+                    {% endif %}
+                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                        {{ dayoff.start_date|date:"M j" }}{% if dayoff.start_date != dayoff.end_date %} - {{ dayoff.end_date|date:"M j, Y" }}{% else %}, {{ dayoff.start_date|date:"Y" }}{% endif %}
+                    </p>
+                    {% if dayoff.reason %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
+                        {{ dayoff.reason|truncatechars:60 }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right side: Status + Actions -->
+        <div class="flex items-center space-x-3">
+            <!-- Status Badge -->
+            {% if dayoff.status == 'pending' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium animate-pulse bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+                Pending
+            </span>
+            {% elif dayoff.status == 'approved' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                Approved
+            </span>
+            {% elif dayoff.status == 'denied' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200">
+                Denied
+            </span>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            {% if dayoff.status == 'pending' %}
+                {% if is_manager %}
+                <!-- Manager: Approve/Deny -->
+                <div class="flex items-center space-x-2" @click.stop>
+                    <button hx-post="{% url 'scheduling:dayoff_approve' pk=dayoff.pk %}"
+                            hx-target="#request-{{ dayoff.pk }}"
+                            hx-swap="outerHTML"
+                            class="p-2 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                            title="Approve">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </button>
+                    <button hx-post="{% url 'scheduling:dayoff_deny' pk=dayoff.pk %}"
+                            hx-target="#request-{{ dayoff.pk }}"
+                            hx-swap="outerHTML"
+                            class="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="Deny">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                {% else %}
+                <!-- Employee: Cancel own request -->
+                <button @click.stop
+                        hx-post="{% url 'scheduling:dayoff_cancel' pk=dayoff.pk %}"
+                        hx-swap="none"
+                        class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        title="Cancel request">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+                {% endif %}
+            {% else %}
+            <!-- View details button for reviewed requests -->
+            <button @click.stop
+                    x-data
+                    hx-get="{% url 'scheduling:dayoff_detail' pk=dayoff.pk %}"
+                    hx-target="#modal-content"
+                    hx-swap="innerHTML"
+                    @htmx:after-request="$dispatch('open-modal')"
+                    class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="View details">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>

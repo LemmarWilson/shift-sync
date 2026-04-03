@@ -16,11 +16,12 @@
 
                 <!-- Nav Links -->
                 <div class="hidden md:flex items-center space-x-4">
-                    <a href="{% url 'scheduling:calendar' %}" class="px-3 py-2 rounded-md text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30">
+                    <a href="{% url 'scheduling:calendar' %}"
+                       class="px-3 py-2 rounded-md text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'calendar' %}text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
                         Calendar
                     </a>
-                    <!-- Future: Requests link -->
-                    <a href="#" class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <a href="{% url 'scheduling:dayoff_list' %}"
+                       class="px-3 py-2 rounded-md text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'dayoff_list' %}text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30{% else %}text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
                         Requests
                     </a>
                 </div>

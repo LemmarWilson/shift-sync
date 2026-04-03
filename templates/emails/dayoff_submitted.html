@@ -1,0 +1,29 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<h2 style="color: #1f2937; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+    New Day-Off Request
+</h2>
+
+<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
+    A new day-off request has been submitted and requires your review.
+</p>
+
+<div style="background: #f9fafb; border-left: 4px solid #f59e0b; padding: 16px; margin: 0 0 24px 0; border-radius: 0 8px 8px 0;">
+    <p style="color: #1f2937; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">
+        {{ employee_name }}
+    </p>
+    <p style="color: #4b5563; font-size: 14px; margin: 0 0 4px 0;">
+        <strong>Dates:</strong> {{ start_date|date:"M j" }}{% if start_date != end_date %} - {{ end_date|date:"M j, Y" }}{% else %}, {{ start_date|date:"Y" }}{% endif %}
+    </p>
+    {% if reason %}
+    <p style="color: #4b5563; font-size: 14px; margin: 0;">
+        <strong>Reason:</strong> {{ reason }}
+    </p>
+    {% endif %}
+</div>
+
+<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">
+    Please log in to review this request.
+</p>
+{% endblock %}
