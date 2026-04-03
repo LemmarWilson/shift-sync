@@ -22,9 +22,12 @@
     {% for week in month_weeks %}
     <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
         {% for day_date in week %}
-        <div class="relative min-h-[100px] p-1.5 border-r border-gray-200 dark:border-gray-700 last:border-r-0
+        <div class="relative min-h-[100px] p-1.5 border-r border-gray-200 dark:border-gray-700 last:border-r-0 cursor-pointer
             {% if day_date.month != current_month %}bg-gray-50 dark:bg-gray-800/50{% endif %}
-            {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}">
+            {% if day_date == today %}bg-indigo-50 dark:bg-indigo-900/20{% endif %}"
+             hx-get="{% url 'scheduling:partial_calendar_grid' %}?date={{ day_date|date:'Y-m-d' }}&view_mode=week"
+             hx-target="#calendar-grid"
+             hx-swap="innerHTML">
 
             <!-- Date Number -->
             <div class="flex items-center justify-between mb-1">
@@ -38,6 +41,11 @@
                 {% with day_shifts=shifts_by_date|get_item:day_date %}
                 {% for shift in day_shifts|slice:":3" %}
                 <div class="text-xs px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
+                     hx-get="{% url 'scheduling:shift_detail' pk=shift.pk %}"
+                     hx-target="#modal-content"
+                     hx-trigger="click"
+                     @htmx:after-request="$dispatch('open-modal')"
+                     @click.stop
                      style="background-color: {{ shift.employee.color }}20; border-left: 2px solid {{ shift.employee.color }};">
                     <span class="font-medium">{{ shift.start_time|time:"g:iA" }}</span>
                     <span class="text-gray-600 dark:text-gray-400">{{ shift.employee.first_name|default:shift.employee.username|truncatechars:6 }}</span>
@@ -65,6 +73,7 @@
     {% endfor %}
 </div>
 
+{% if is_htmx %}
 <!-- OOB Updates for header navigation (updates elements outside #calendar-grid) -->
 <div id="calendar-header" hx-swap-oob="true" class="text-center min-w-[200px]">
     <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -91,3 +100,4 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
     </svg>
 </button>
+{% endif %}

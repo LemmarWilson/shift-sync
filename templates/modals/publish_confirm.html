@@ -1,0 +1,38 @@
+<div class="p-6">
+<div class="text-center space-y-4">
+    <!-- Checkmark Icon -->
+    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30">
+        <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+    </div>
+
+    <!-- Message -->
+    <div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Publish Week?</h3>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            This will publish all shifts for the week of<br>
+            <strong class="text-gray-700 dark:text-gray-300">{{ start_date }}</strong> to <strong class="text-gray-700 dark:text-gray-300">{{ end_date }}</strong>.<br>
+            Employees will be notified of their scheduled shifts.
+        </p>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex justify-center space-x-3 pt-4">
+        <button @click="$dispatch('close-modal')"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+            Cancel
+        </button>
+        <form hx-post="{% url 'scheduling:shifts_publish' %}"
+              hx-swap="none">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+            <button type="submit"
+                    class="px-4 py-2 text-sm font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors">
+                Publish
+            </button>
+        </form>
+    </div>
+</div>
+</div>

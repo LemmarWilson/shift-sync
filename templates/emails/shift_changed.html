@@ -1,0 +1,26 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<p class="greeting">Hi {{ employee_name }},</p>
+
+<p>Your shift has been updated:</p>
+
+<div class="shift-card">
+  <div class="shift-date">{{ date_formatted }}</div>
+  <div class="shift-time">{{ time_range }}</div>
+  {% if shift.department %}
+  <div class="shift-notes">Department: {{ shift.department.name }}</div>
+  {% endif %}
+  {% if shift.notes %}
+  <div class="shift-notes">Notes: {{ shift.notes }}</div>
+  {% endif %}
+</div>
+
+{% if old_data %}
+<p style="color: #6b7280; font-size: 14px;">
+  Previous: {{ old_data.date }} from {{ old_data.start_time }} to {{ old_data.end_time }}
+</p>
+{% endif %}
+
+<p>Please log in to ShiftSync to view your updated schedule.</p>
+{% endblock %}

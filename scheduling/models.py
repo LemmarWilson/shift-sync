@@ -152,6 +152,7 @@ class Shift(models.Model):
         Department,
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name='shifts',
         help_text='Department this shift is associated with.',
     )

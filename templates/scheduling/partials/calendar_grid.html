@@ -30,6 +30,7 @@
     </div>
 </div>
 
+{% if is_htmx %}
 <!-- OOB Updates for header navigation (updates elements outside #calendar-grid) -->
 <div id="calendar-header" hx-swap-oob="true" class="text-center min-w-[200px]">
     <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -56,3 +57,4 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
     </svg>
 </button>
+{% endif %}

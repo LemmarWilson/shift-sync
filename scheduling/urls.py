@@ -1,14 +1,23 @@
 """
 URL configuration for the scheduling app.
 
-This module defines URL patterns for calendar views and HTMX partials.
-All URLs are namespaced under 'scheduling' for reverse URL resolution.
+This module defines URL patterns for calendar views, HTMX partials,
+and shift CRUD operations. All URLs are namespaced under 'scheduling'
+for reverse URL resolution.
 
 URL Patterns:
-    /                           - Main calendar view (today's week)
-    /calendar/                  - Alternate calendar URL
-    /calendar/<view_date>/      - Calendar for a specific date's week
-    /partials/calendar-grid/    - HTMX partial for week navigation
+    Calendar:
+        /                           - Main calendar view (today's week)
+        /calendar/                  - Alternate calendar URL
+        /calendar/<view_date>/      - Calendar for a specific date's week
+        /partials/calendar-grid/    - HTMX partial for week navigation
+
+    Shifts:
+        /shifts/create/             - Create a new shift
+        /shifts/<pk>/               - View shift details
+        /shifts/<pk>/edit/          - Edit a shift
+        /shifts/<pk>/delete/        - Delete a shift
+        /partials/shift-form/       - HTMX partial for shift form
 """
 
 from django.urls import path
@@ -31,10 +40,56 @@ urlpatterns = [
         name='calendar_date',
     ),
 
-    # HTMX partial endpoints
+    # HTMX partial endpoints - Calendar
     path(
         'partials/calendar-grid/',
         views.CalendarGridPartial.as_view(),
         name='partial_calendar_grid',
+    ),
+
+    # Shift CRUD endpoints
+    path(
+        'shifts/create/',
+        views.ShiftCreateView.as_view(),
+        name='shift_create',
+    ),
+    path(
+        'shifts/<int:pk>/',
+        views.ShiftDetailView.as_view(),
+        name='shift_detail',
+    ),
+    path(
+        'shifts/<int:pk>/edit/',
+        views.ShiftUpdateView.as_view(),
+        name='shift_update',
+    ),
+    path(
+        'shifts/<int:pk>/delete/',
+        views.ShiftDeleteView.as_view(),
+        name='shift_delete',
+    ),
+
+    # HTMX partial endpoints - Shifts
+    path(
+        'partials/shift-form/',
+        views.ShiftFormPartial.as_view(),
+        name='shift_form_partial',
+    ),
+
+    # Shift Publishing endpoints
+    path(
+        'shifts/publish/confirm/',
+        views.PublishConfirmView.as_view(),
+        name='publish_confirm',
+    ),
+    path(
+        'shifts/publish/',
+        views.PublishShiftsView.as_view(),
+        name='shifts_publish',
+    ),
+    path(
+        'shifts/<int:pk>/toggle-publish/',
+        views.ShiftPublishToggleView.as_view(),
+        name='shift_toggle_publish',
     ),
 ]

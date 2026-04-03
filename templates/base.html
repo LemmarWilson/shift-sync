@@ -107,11 +107,57 @@
         #calendar-grid {
             overflow: hidden;
         }
+
+        /* HTMX request indicator */
+        .htmx-request .htmx-indicator {
+            display: inline-flex !important;
+        }
+        .htmx-indicator {
+            display: none;
+        }
+
+        /* Modal animations */
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes modalScaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-backdrop {
+            animation: modalFadeIn 0.2s ease-out;
+        }
+        .modal-content {
+            animation: modalScaleIn 0.2s ease-out;
+        }
+
+        /* Success animation */
+        @keyframes successPop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .success-check {
+            animation: successPop 0.3s ease-out;
+        }
+
+        /* x-cloak for Alpine.js */
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
 
     {% block extra_head %}{% endblock %}
 </head>
 <body class="h-full bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
+    <!-- HTMX CSRF Configuration -->
+    <script>
+        document.body.addEventListener('htmx:configRequest', function(event) {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+    </script>
+
     <!-- Flash Messages -->
     {% if messages %}
     <div class="fixed top-4 right-4 z-50 space-y-2" x-data="{ messages: true }" x-show="messages" x-init="setTimeout(() => messages = false, 5000)">

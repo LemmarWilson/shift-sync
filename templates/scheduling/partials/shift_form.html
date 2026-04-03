@@ -1,0 +1,75 @@
+<form method="post"
+      hx-post="{% url 'scheduling:shift_create' %}"
+      hx-target="#day-{{ form_date|date:'Y-m-d' }}-shifts"
+      hx-swap="beforeend"
+      class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 space-y-3">
+    {% csrf_token %}
+
+    <input type="hidden" name="date" value="{{ form_date|date:'Y-m-d' }}">
+
+    <!-- Employee Select -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee</label>
+        <select name="employee" required class="form-input">
+            <option value="">Select employee...</option>
+            {% for emp in employees %}
+            <option value="{{ emp.pk }}">{{ emp.get_full_name|default:emp.username }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Department Select -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
+        <select name="department" class="form-input">
+            <option value="">Select department...</option>
+            {% for dept in departments %}
+            <option value="{{ dept.pk }}">{{ dept.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Time inputs side by side -->
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start</label>
+            <input type="time" name="start_time" required class="form-input">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End</label>
+            <input type="time" name="end_time" required class="form-input">
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+        <textarea name="notes" rows="2" class="form-input" placeholder="Optional notes..."></textarea>
+    </div>
+
+    <!-- Error display area -->
+    {% if form.errors %}
+    <div class="text-red-500 text-sm">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Buttons -->
+    <div class="flex justify-end space-x-2 pt-2">
+        <button type="button"
+                @click="showForm = false"
+                class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+            Cancel
+        </button>
+        <button type="submit"
+                class="px-4 py-2 text-sm font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors flex items-center">
+            <span class="htmx-indicator mr-2">
+                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </span>
+            Save Shift
+        </button>
+    </div>
+</form>

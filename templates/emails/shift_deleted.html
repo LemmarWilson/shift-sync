@@ -1,0 +1,14 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<p class="greeting">Hi {{ employee_name }},</p>
+
+<p>The following shift has been cancelled:</p>
+
+<div class="shift-card" style="border-left-color: #ef4444;">
+  <div class="shift-date">{{ shift_data.date|date:"l, F j, Y" }}</div>
+  <div class="shift-time">{{ shift_data.start_time|time:"g:i A" }} - {{ shift_data.end_time|time:"g:i A" }}</div>
+</div>
+
+<p>Please log in to ShiftSync if you have any questions about your schedule.</p>
+{% endblock %}
