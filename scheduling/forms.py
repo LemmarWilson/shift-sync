@@ -2,7 +2,8 @@
 Forms for the scheduling app.
 
 This module contains Django forms and model forms for handling user input
-in scheduling operations, including shift creation and editing.
+in scheduling operations, including shift creation, editing, and user profile
+management.
 """
 
 from datetime import date
@@ -10,7 +11,7 @@ from datetime import date
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import DayOffRequest, Shift
+from .models import DayOffRequest, Shift, User
 
 
 class ShiftForm(forms.ModelForm):
@@ -130,5 +131,162 @@ class DayOffRequestForm(forms.ModelForm):
 
         if start and start < date.today():
             raise ValidationError('Cannot request time off for past dates.')
+
+        return cleaned_data
+
+
+class UserProfileForm(forms.ModelForm):
+    """
+    ModelForm for editing user profile information.
+
+    Allows users to update their username, email, phone, first name,
+    and last name. All fields use consistent Tailwind styling.
+    """
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 'phone']
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Username',
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Email address',
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'First name',
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Last name',
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Phone number',
+            }),
+        }
+
+    def clean_email(self):
+        """
+        Validate that the email is unique among users.
+
+        Excludes the current user from the uniqueness check to allow
+        users to keep their existing email.
+
+        Returns:
+            The cleaned email value.
+
+        Raises:
+            ValidationError: If the email is already in use by another user.
+        """
+        email = self.cleaned_data.get('email')
+        if email:
+            # Check if another user already has this email
+            existing = User.objects.filter(email=email).exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise ValidationError('This email is already in use.')
+        return email
+
+    def clean_username(self):
+        """
+        Validate that the username is unique among users.
+
+        Excludes the current user from the uniqueness check to allow
+        users to keep their existing username.
+
+        Returns:
+            The cleaned username value.
+
+        Raises:
+            ValidationError: If the username is already in use by another user.
+        """
+        username = self.cleaned_data.get('username')
+        if username:
+            # Check if another user already has this username
+            existing = User.objects.filter(username=username).exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise ValidationError('This username is already taken.')
+        return username
+
+
+class PasswordChangeForm(forms.Form):
+    """
+    Form for changing user password.
+
+    Requires the current password for verification and validates
+    that new passwords match and meet minimum length requirements.
+    """
+
+    old_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Current password',
+        }),
+        label='Current Password',
+    )
+    new_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'New password',
+        }),
+        label='New Password',
+        min_length=8,
+        help_text='Password must be at least 8 characters.',
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Confirm new password',
+        }),
+        label='Confirm New Password',
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        """
+        Initialize the form with the user whose password will be changed.
+
+        Args:
+            user: The User instance whose password is being changed.
+            *args: Variable positional arguments passed to Form.__init__.
+            **kwargs: Variable keyword arguments passed to Form.__init__.
+        """
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_old_password(self):
+        """
+        Validate that the old password is correct.
+
+        Returns:
+            The cleaned old password value.
+
+        Raises:
+            ValidationError: If the old password is incorrect.
+        """
+        old_password = self.cleaned_data.get('old_password')
+        if not self.user.check_password(old_password):
+            raise ValidationError('Current password is incorrect.')
+        return old_password
+
+    def clean(self):
+        """
+        Validate that the new passwords match.
+
+        Returns:
+            The cleaned data dictionary.
+
+        Raises:
+            ValidationError: If the new passwords do not match.
+        """
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get('new_password')
+        confirm_password = cleaned_data.get('confirm_password')
+
+        if new_password and confirm_password:
+            if new_password != confirm_password:
+                raise ValidationError('New passwords do not match.')
 
         return cleaned_data

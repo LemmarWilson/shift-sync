@@ -168,4 +168,21 @@ urlpatterns = [
         views.NotificationBellPartial.as_view(),
         name='notification_bell_partial',
     ),
+
+    # Profile endpoints
+    path(
+        'profile/',
+        views.ProfileView.as_view(),
+        name='profile',
+    ),
+    path(
+        'profile/edit/',
+        views.ProfileEditView.as_view(),
+        name='profile_edit',
+    ),
+    path(
+        'profile/change-password/',
+        views.PasswordChangeView.as_view(),
+        name='password_change',
+    ),
 ]
