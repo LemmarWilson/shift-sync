@@ -138,13 +138,6 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'shiftsync.log',  # noqa: F405
-            'maxBytes': 10485760,  # 10 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
     },
     'root': {
         'handlers': ['console'],
