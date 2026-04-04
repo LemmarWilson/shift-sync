@@ -367,6 +367,82 @@ DEFAULT_FROM_EMAIL=ShiftSync <noreply@shiftsync.example.com>
 TIME_ZONE=America/New_York
 ```
 
+## Deploying to Heroku
+
+### Prerequisites
+- Heroku CLI installed
+- Git repository initialized
+
+### Quick Start
+
+1. **Login to Heroku**
+   ```bash
+   heroku login
+   ```
+
+2. **Create Heroku app**
+   ```bash
+   heroku create your-app-name
+   ```
+
+3. **Add PostgreSQL database**
+   ```bash
+   heroku addons:create heroku-postgresql:essential-0
+   ```
+
+4. **Set required environment variables**
+   ```bash
+   heroku config:set DJANGO_SETTINGS_MODULE=config.settings.prod
+   heroku config:set SECRET_KEY='your-generated-secret-key'
+   heroku config:set ALLOWED_HOSTS='your-app-name.herokuapp.com'
+   heroku config:set DEBUG=False
+   ```
+
+   Generate a secret key:
+   ```bash
+   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+   ```
+
+5. **Configure email (SendGrid example)**
+   ```bash
+   heroku config:set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+   heroku config:set EMAIL_HOST=smtp.sendgrid.net
+   heroku config:set EMAIL_PORT=587
+   heroku config:set EMAIL_USE_TLS=True
+   heroku config:set EMAIL_HOST_USER=apikey
+   heroku config:set EMAIL_HOST_PASSWORD='your-sendgrid-api-key'
+   heroku config:set DEFAULT_FROM_EMAIL='ShiftSync <noreply@yourdomain.com>'
+   ```
+
+6. **Deploy**
+   ```bash
+   git push heroku main
+   ```
+
+7. **Create superuser**
+   ```bash
+   heroku run python manage.py createsuperuser
+   ```
+
+8. **Set up shift reminders (optional)**
+   ```bash
+   heroku addons:create scheduler:standard
+   ```
+   Then configure in Heroku Dashboard: `python manage.py send_shift_reminders`
+
+### Environment Variables Reference
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DJANGO_SETTINGS_MODULE` | Yes | Set to `config.settings.prod` |
+| `SECRET_KEY` | Yes | Django secret key (50+ chars) |
+| `ALLOWED_HOSTS` | Yes | Your Heroku app domain |
+| `DEBUG` | Yes | Must be `False` |
+| `DATABASE_URL` | Auto | Set automatically by Heroku Postgres |
+| `EMAIL_*` | Yes | SMTP email configuration |
+| `CSRF_TRUSTED_ORIGINS` | Optional | `https://your-app.herokuapp.com` |
+| `TIME_ZONE` | Optional | Default: America/New_York |
+
 ## License
 
 MIT

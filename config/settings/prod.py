@@ -100,6 +100,10 @@ X_FRAME_OPTIONS = 'DENY'
 # Referrer policy
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
+# CSRF trusted origins for HTTPS
+_csrf_origins = config('CSRF_TRUSTED_ORIGINS', default='')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins.split(',') if origin.strip()]
+
 
 # =============================================================================
 # STATIC FILES WITH WHITENOISE

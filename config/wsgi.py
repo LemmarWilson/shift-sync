@@ -11,6 +11,8 @@ import os
 from django.core.wsgi import get_wsgi_application
 
 
+# Allow environment variable to override, with dev as fallback
+# On Heroku, DJANGO_SETTINGS_MODULE will be set to 'config.settings.prod'
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
 
 application = get_wsgi_application()

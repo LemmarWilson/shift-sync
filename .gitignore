@@ -164,3 +164,18 @@ media/
 *.pem
 *.key
 secrets.json
+
+# Additional security for public repos
+.env.local
+.env.*.local
+*.env
+.secrets/
+credentials.json
+service-account*.json
+*-credentials.json
+
+# Logs directory (created by prod.py)
+logs/
+
+# Heroku local
+.heroku/
