@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - ShiftSync{% endblock %}
+
+{% block navbar %}
+{% include 'components/navbar.html' %}
+{% endblock %}
+
+{% block content %}
+<main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Profile</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your account settings and preferences.</p>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <!-- Profile Header -->
+        <div class="px-6 py-6 sm:px-8 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center space-x-4">
+                <!-- Avatar -->
+                <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-semibold text-white"
+                     style="background-color: {{ user.color|default:'#6366f1' }};">
+                    {{ user.first_name|slice:":1"|upper|default:user.username|slice:":1"|upper }}
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+                        {{ user.get_full_name|default:user.username }}
+                    </h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ user.email }}</p>
+                    {% if user.is_manager %}
+                    <span class="inline-flex items-center px-2 py-0.5 mt-1 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
+                        Manager
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 mt-1 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                        Employee
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Details -->
+        <div class="px-6 py-6 sm:px-8">
+            <dl class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <!-- Username -->
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Username</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.username }}</dd>
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.email|default:"Not set" }}</dd>
+                </div>
+
+                <!-- First Name -->
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">First Name</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.first_name|default:"Not set" }}</dd>
+                </div>
+
+                <!-- Last Name -->
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Name</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.last_name|default:"Not set" }}</dd>
+                </div>
+
+                <!-- Phone -->
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Phone</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.phone|default:"Not set" }}</dd>
+                </div>
+
+                <!-- Department -->
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Department</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ user.department.name|default:"Not assigned" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="px-6 py-4 sm:px-8 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4">
+                <!-- Edit Profile Button -->
+                <button x-data
+                        hx-get="{% url 'scheduling:profile_edit' %}"
+                        hx-target="#modal-content"
+                        hx-swap="innerHTML"
+                        @htmx:after-request="$dispatch('open-modal')"
+                        class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    Edit Profile
+                </button>
+
+                <!-- Change Password Button -->
+                <button x-data
+                        hx-get="{% url 'scheduling:password_change' %}"
+                        hx-target="#modal-content"
+                        hx-swap="innerHTML"
+                        @htmx:after-request="$dispatch('open-modal')"
+                        class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                    </svg>
+                    Change Password
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Modal Container -->
+    <div x-data="{ showModal: false }"
+         @open-modal.window="showModal = true"
+         @close-modal.window="showModal = false"
+         @keydown.escape.window="showModal = false"
+         x-cloak>
+
+        <!-- Backdrop -->
+        <div x-show="showModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-50 bg-black/50"
+             @click="showModal = false">
+        </div>
+
+        <!-- Modal Panel -->
+        <div x-show="showModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4">
+            <div id="modal-content"
+                 @click.stop
+                 class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto pointer-events-auto">
+                <!-- Content loaded via HTMX -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Handle closeModal HX-Trigger from server
+    document.body.addEventListener('closeModal', function() {
+        window.dispatchEvent(new CustomEvent('close-modal'));
+    });
+
+    // Refresh page when profile is updated
+    document.body.addEventListener('profileUpdated', function() {
+        window.location.reload();
+    });
+
+    // Close modal when password is changed
+    document.body.addEventListener('passwordChanged', function() {
+        window.dispatchEvent(new CustomEvent('close-modal'));
+    });
+    </script>
+</main>
+{% endblock %}

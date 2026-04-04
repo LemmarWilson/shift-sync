@@ -39,7 +39,7 @@ class LandingView(View):
             return redirect('scheduling:calendar')
         return render(request, 'landing.html')
 
-from .forms import DayOffRequestForm, ShiftForm
+from .forms import DayOffRequestForm, PasswordChangeForm, ShiftForm, UserProfileForm
 from .mixins import ManagerRequiredMixin
 from .models import DayOffRequest, Department, Notification, Shift, User
 from .services import CalendarService, EmailService, NotificationService
@@ -1292,3 +1292,153 @@ class NotificationClickView(LoginRequiredMixin, View):
 
         from django.shortcuts import redirect
         return redirect(redirect_url)
+
+
+# =============================================================================
+# Profile Management Views
+# =============================================================================
+
+
+class ProfileView(LoginRequiredMixin, TemplateView):
+    """
+    Display the user's profile page.
+
+    Shows the current user's profile information with options to
+    edit profile details and change password via modal forms.
+
+    Context Variables:
+        user: The current authenticated user.
+    """
+
+    template_name = 'scheduling/profile.html'
+
+
+class ProfileEditView(LoginRequiredMixin, View):
+    """
+    Handle profile editing via HTMX modal.
+
+    GET: Returns the profile edit form partial for the modal.
+    POST: Processes the profile update and returns success/error response.
+
+    HTMX Response:
+        On success, returns success state with HX-Trigger for page refresh.
+        On error, re-renders the form with validation errors.
+    """
+
+    def get(self, request):
+        """
+        Handle GET request to display the profile edit form.
+
+        Returns the profile edit modal content with the form pre-filled
+        with the current user's data.
+        """
+        form = UserProfileForm(instance=request.user)
+        html = render_to_string(
+            'modals/profile_edit.html',
+            {'form': form},
+            request=request
+        )
+        return HttpResponse(html)
+
+    def post(self, request):
+        """
+        Handle POST request to update the user's profile.
+
+        Validates the form data and updates the user's profile.
+        Returns a success state on success or re-renders the form
+        with errors on validation failure.
+        """
+        form = UserProfileForm(request.POST, instance=request.user)
+
+        if form.is_valid():
+            form.save()
+
+            # Render success state
+            html = render_to_string(
+                'modals/success_state.html',
+                {
+                    'title': 'Profile Updated!',
+                    'message': 'Your profile has been updated successfully.'
+                },
+                request=request
+            )
+
+            response = HttpResponse(html)
+            response['HX-Trigger'] = 'profileUpdated'
+            return response
+
+        # Re-render form with errors
+        html = render_to_string(
+            'modals/profile_edit.html',
+            {'form': form},
+            request=request
+        )
+        return HttpResponse(html)
+
+
+class PasswordChangeView(LoginRequiredMixin, View):
+    """
+    Handle password change via HTMX modal.
+
+    GET: Returns the password change form partial for the modal.
+    POST: Processes the password change and returns success/error response.
+
+    HTMX Response:
+        On success, returns success state with HX-Trigger for modal close.
+        On error, re-renders the form with validation errors.
+    """
+
+    def get(self, request):
+        """
+        Handle GET request to display the password change form.
+
+        Returns the password change modal content with an empty form.
+        """
+        form = PasswordChangeForm(user=request.user)
+        html = render_to_string(
+            'modals/password_change.html',
+            {'form': form},
+            request=request
+        )
+        return HttpResponse(html)
+
+    def post(self, request):
+        """
+        Handle POST request to change the user's password.
+
+        Validates the form data (old password verification, new password
+        confirmation) and updates the user's password. Returns a success
+        state on success or re-renders the form with errors on failure.
+        """
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+
+        if form.is_valid():
+            # Update the password
+            request.user.set_password(form.cleaned_data['new_password'])
+            request.user.save()
+
+            # Update session to prevent logout after password change
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)
+
+            # Render success state
+            html = render_to_string(
+                'modals/success_state.html',
+                {
+                    'title': 'Password Changed!',
+                    'message': 'Your password has been updated successfully.'
+                },
+                request=request
+            )
+
+            response = HttpResponse(html)
+            response['HX-Trigger'] = 'passwordChanged'
+            return response
+
+        # Re-render form with errors
+        html = render_to_string(
+            'modals/password_change.html',
+            {'form': form},
+            request=request
+        )
+        return HttpResponse(html)
