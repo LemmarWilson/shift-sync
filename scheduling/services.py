@@ -747,3 +747,160 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to mark notification {notification_id} read: {e}")
             return False
+
+
+class HoursService:
+    """
+    Service class for calculating and aggregating hours worked.
+
+    Provides static methods for retrieving scheduled vs actual hours,
+    calculating variances, and generating weekly summaries for both
+    individual employees and team-wide views.
+    """
+
+    @staticmethod
+    def get_week_range(target_date: date) -> tuple[date, date]:
+        """
+        Get the Monday-Sunday range for the week containing target_date.
+
+        Args:
+            target_date: Any date within the desired week.
+
+        Returns:
+            A tuple of (monday, sunday) dates for that week.
+
+        Example:
+            >>> HoursService.get_week_range(date(2024, 3, 13))  # Wednesday
+            (date(2024, 3, 11), date(2024, 3, 17))  # Mon-Sun
+        """
+        days_since_monday = target_date.weekday()
+        monday = target_date - timedelta(days=days_since_monday)
+        sunday = monday + timedelta(days=6)
+        return monday, sunday
+
+    @staticmethod
+    def get_user_weekly_hours(user: User, week_start: date) -> dict:
+        """
+        Get a user's hours for the week with daily breakdown.
+
+        Retrieves all shifts for the specified user within the week,
+        calculates scheduled and actual hours for each day, and provides
+        variance information.
+
+        Args:
+            user: The User instance to get hours for.
+            week_start: The Monday of the target week.
+
+        Returns:
+            A dictionary containing:
+                - days: List of daily hour summaries (7 days)
+                - total_scheduled: Total scheduled hours for the week
+                - total_actual: Total actual hours worked
+                - total_variance: Difference between actual and scheduled
+
+        Example:
+            >>> user = User.objects.get(pk=1)
+            >>> HoursService.get_user_weekly_hours(user, date(2024, 3, 11))
+            {
+                'days': [...],
+                'total_scheduled': 40.0,
+                'total_actual': 38.5,
+                'total_variance': -1.5
+            }
+        """
+        week_end = week_start + timedelta(days=6)
+
+        # Fetch shifts for the week with related data to avoid N+1 queries
+        shifts = Shift.objects.filter(
+            employee=user,
+            date__gte=week_start,
+            date__lte=week_end
+        ).select_related('employee').prefetch_related('time_entries')
+
+        # Build daily breakdown with hours calculations
+        days = []
+        total_scheduled = 0
+        total_actual = 0
+
+        for i in range(7):
+            day_date = week_start + timedelta(days=i)
+            day_shifts = [s for s in shifts if s.date == day_date]
+
+            scheduled = sum(s.scheduled_hours for s in day_shifts)
+            actual = sum(s.actual_hours for s in day_shifts)
+
+            days.append({
+                'date': day_date,
+                'day_name': day_date.strftime('%A'),
+                'scheduled': round(scheduled, 2),
+                'actual': round(actual, 2),
+                'variance': round(actual - scheduled, 2),
+                'shifts': day_shifts
+            })
+
+            total_scheduled += scheduled
+            total_actual += actual
+
+        return {
+            'days': days,
+            'total_scheduled': round(total_scheduled, 2),
+            'total_actual': round(total_actual, 2),
+            'total_variance': round(total_actual - total_scheduled, 2)
+        }
+
+    @staticmethod
+    def get_all_employees_weekly_hours(week_start: date, department=None) -> list:
+        """
+        Get all employees' hours for the week (manager view).
+
+        Aggregates scheduled and actual hours for all employees,
+        optionally filtered by department.
+
+        Args:
+            week_start: The Monday of the target week.
+            department: Optional Department instance to filter by.
+
+        Returns:
+            A list of dictionaries, each containing:
+                - employee: The User instance
+                - scheduled: Total scheduled hours
+                - actual: Total actual hours worked
+                - variance: Difference between actual and scheduled
+                - shift_count: Number of shifts in the week
+
+        Example:
+            >>> HoursService.get_all_employees_weekly_hours(date(2024, 3, 11))
+            [
+                {'employee': <User>, 'scheduled': 40.0, 'actual': 38.5, ...},
+                ...
+            ]
+        """
+        week_end = week_start + timedelta(days=6)
+
+        # Get all employees (excluding managers for the summary)
+        employees = User.objects.filter(role=User.Role.EMPLOYEE)
+        if department:
+            employees = employees.filter(department=department)
+
+        employees = employees.order_by('first_name', 'last_name')
+
+        result = []
+        for emp in employees:
+            shifts = Shift.objects.filter(
+                employee=emp,
+                date__gte=week_start,
+                date__lte=week_end
+            ).prefetch_related('time_entries')
+
+            scheduled = sum(s.scheduled_hours for s in shifts)
+            actual = sum(s.actual_hours for s in shifts)
+
+            result.append({
+                'employee': emp,
+                'scheduled': round(scheduled, 2),
+                'actual': round(actual, 2),
+                'variance': round(actual - scheduled, 2),
+                'shift_count': len(shifts)
+            })
+
+        return result
