@@ -3,181 +3,499 @@
 {% block title %}ShiftSync - Employee Scheduling Made Simple{% endblock %}
 
 {% block content %}
+<style>
+  /* ── Google Font: pair a refined display font with existing DM/system sans ── */
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
+  /* ── CSS custom props — light/dark aware ── */
+  :root {
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+
+  /* ── Scroll-reveal base state ── */
+  .sr {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.75s var(--ease-out-expo), transform 0.75s var(--ease-out-expo);
+  }
+  .sr.sr-left  { transform: translateX(-24px); }
+  .sr.sr-scale { transform: scale(0.96); }
+  .sr.visible  { opacity: 1 !important; transform: none !important; }
+
+  .sr-d1 { transition-delay: 0.08s; }
+  .sr-d2 { transition-delay: 0.16s; }
+  .sr-d3 { transition-delay: 0.24s; }
+  .sr-d4 { transition-delay: 0.32s; }
+
+  /* ── Nav: frosted glass on scroll ── */
+  #main-nav {
+    transition: background 0.5s ease, backdrop-filter 0.5s ease,
+                padding-top 0.4s ease, padding-bottom 0.4s ease,
+                border-color 0.5s ease;
+    border-bottom: 1px solid transparent;
+  }
+  #main-nav.scrolled {
+    background: rgba(255,255,255,0.8);
+    backdrop-filter: blur(20px) saturate(160%);
+    border-color: rgba(0,0,0,0.08);
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+  .dark #main-nav.scrolled {
+    background: rgba(10, 10, 18, 0.85);
+    border-color: rgba(255,255,255,0.07);
+  }
+
+  /* ── Hero headline: use Instrument Serif italic for the key word ── */
+  .hero-title em {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  /* ── Hero entrance animations ── */
+  @keyframes hero-fade-up {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hero-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .hero-anim-1 { animation: hero-fade-up 0.85s var(--ease-out-expo) 0.15s both; }
+  .hero-anim-2 { animation: hero-fade-up 0.85s var(--ease-out-expo) 0.35s both; }
+  .hero-anim-3 { animation: hero-fade-up 0.85s var(--ease-out-expo) 0.55s both; }
+  .hero-anim-4 { animation: hero-fade-in 1s ease          0.75s both; }
+
+  /* ── Animated background blob ── */
+  .hero-blob {
+    animation: blob-drift 18s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes blob-drift {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33%      { transform: translate(40px, 30px) scale(1.06); }
+    66%      { transform: translate(-30px, 50px) scale(0.96); }
+  }
+
+  /* ── Shimmer divider line ── */
+  .shimmer-line {
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255,255,255,0.35) 30%,
+      rgba(255,255,255,0.6) 50%,
+      rgba(255,255,255,0.35) 70%,
+      transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+    margin: 0 auto;
+    width: 80%;
+    max-width: 600px;
+  }
+  .dark .shimmer-line {
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(99,102,241,0.4) 30%,
+      rgba(99,102,241,0.7) 50%,
+      rgba(99,102,241,0.4) 70%,
+      transparent 100%);
+    background-size: 200% 100%;
+  }
+  @keyframes shimmer {
+    from { background-position: 200% center; }
+    to   { background-position: -200% center; }
+  }
+
+  /* ── Feature cards: lift + glow on hover ── */
+  .feature-card {
+    transition: transform 0.35s var(--ease-out-expo),
+                box-shadow 0.35s ease,
+                background 0.3s ease;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: -1.5rem;
+  }
+  .feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 48px -8px rgba(99, 102, 241, 0.18);
+    background: rgba(99,102,241,0.04);
+  }
+  .dark .feature-card:hover {
+    background: rgba(99,102,241,0.08);
+    box-shadow: 0 20px 48px -8px rgba(99, 102, 241, 0.25);
+  }
+
+  /* ── Feature icon: spin-breathe on card hover ── */
+  .feature-card:hover .feature-icon {
+    transform: scale(1.1) rotate(-4deg);
+    box-shadow: 0 8px 24px -4px rgba(99,102,241,0.4);
+  }
+  .feature-icon {
+    transition: transform 0.4s var(--ease-out-expo), box-shadow 0.4s ease;
+  }
+
+  /* ── CTA button: shimmer sweep ── */
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg,
+      transparent 40%,
+      rgba(255,255,255,0.25) 50%,
+      transparent 60%);
+    transform: translateX(-100%);
+    transition: transform 0s;
+  }
+  .btn-shimmer:hover::after {
+    transform: translateX(100%);
+    transition: transform 0.55s ease;
+  }
+
+  /* ── Nav sign-in link: underline slide ── */
+  .nav-link {
+    position: relative;
+  }
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0;
+    width: 100%; height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s var(--ease-out-expo);
+  }
+  .nav-link:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  /* ── Scroll indicator ── */
+  .scroll-indicator {
+    animation: bounce-subtle 2.2s ease-in-out infinite;
+    animation-delay: 1.2s;
+  }
+  @keyframes bounce-subtle {
+    0%,100% { transform: translateY(0); opacity: 0.7; }
+    50%      { transform: translateY(6px); opacity: 1; }
+  }
+
+  /* ── Wave: subtle breathe ── */
+  .wave-svg {
+    animation: wave-breathe 6s ease-in-out infinite;
+  }
+  @keyframes wave-breathe {
+    0%,100% { d: path("M0,0 C280,74 560,74 720,37 C880,0 1160,0 1440,37 L1440,74 L0,74 Z"); }
+    50%      { d: path("M0,10 C280,64 560,80 720,42 C880,4 1160,4 1440,32 L1440,74 L0,74 Z"); }
+  }
+
+  /* ── Section header underline accent ── */
+  .section-accent {
+    display: inline-block;
+    position: relative;
+  }
+  .section-accent::after {
+    content: '';
+    position: absolute;
+    bottom: -6px; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #6366f1, #a855f7);
+    border-radius: 1px;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.6s var(--ease-out-expo);
+  }
+  .section-accent.visible::after { transform: scaleX(1); transition-delay: 0.3s; }
+
+  /* ── Footer link hover ── */
+  .footer-brand { transition: opacity 0.25s ease; }
+  .footer-brand:hover { opacity: 0.7; }
+</style>
+
 <div class="min-h-full">
-    <!-- Header/Navigation -->
-    <header class="absolute inset-x-0 top-0 z-50">
-        <nav class="flex items-center justify-between p-6 lg:px-8" aria-label="Global">
-            <div class="flex lg:flex-1">
-                <a href="{% url 'landing' %}" class="-m-1.5 p-1.5 flex items-center space-x-2">
-                    <div class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                    </div>
-                    <span class="text-xl font-bold text-white">ShiftSync</span>
-                </a>
-            </div>
-            <div class="flex lg:flex-1 lg:justify-end">
-                <a href="{% url 'login' %}" class="text-sm font-semibold leading-6 text-white hover:text-indigo-200 transition-colors duration-200">
-                    Sign in <span aria-hidden="true">&rarr;</span>
-                </a>
-            </div>
-        </nav>
-    </header>
 
-    <!-- Hero Section -->
-    <div class="relative isolate overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 dark:from-indigo-900 dark:via-indigo-950 dark:to-purple-950">
-        <!-- Background decorative elements -->
-        <div class="absolute inset-0 -z-10 overflow-hidden">
-            <svg class="absolute left-[max(50%,25rem)] top-0 h-[64rem] w-[128rem] -translate-x-1/2 stroke-white/10 [mask-image:radial-gradient(64rem_64rem_at_top,white,transparent)]" aria-hidden="true">
-                <defs>
-                    <pattern id="hero-pattern" width="200" height="200" x="50%" y="-1" patternUnits="userSpaceOnUse">
-                        <path d="M100 200V.5M.5 .5H200" fill="none" />
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" stroke-width="0" fill="url(#hero-pattern)" />
+  <!-- ── Navigation ── -->
+  <header class="absolute inset-x-0 top-0 z-50">
+    <nav id="main-nav"
+         class="flex items-center justify-between px-6 py-6 lg:px-8"
+         aria-label="Global">
+      <div class="flex lg:flex-1">
+        <a href="{% url 'landing' %}" class="-m-1.5 p-1.5 flex items-center space-x-2">
+          <div class="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20 transition-transform duration-300 hover:scale-105">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
-        </div>
+          </div>
+          <span class="text-xl font-bold text-white">ShiftSync</span>
+        </a>
+      </div>
+      <div class="flex lg:flex-1 lg:justify-end">
+        <a href="{% url 'login' %}"
+           class="nav-link text-sm font-semibold leading-6 text-white hover:text-indigo-200 transition-colors duration-200">
+          Sign in <span aria-hidden="true">&rarr;</span>
+        </a>
+      </div>
+    </nav>
+  </header>
 
-        <div class="absolute left-1/2 top-0 -z-10 -translate-x-1/2 blur-3xl xl:-top-6" aria-hidden="true">
-            <div class="aspect-[1155/678] w-[72.1875rem] bg-gradient-to-tr from-purple-400 to-indigo-400 opacity-20" style="clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)"></div>
-        </div>
+  <!-- ── Hero ── -->
+  <div class="relative isolate overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800
+              dark:from-indigo-900 dark:via-indigo-950 dark:to-purple-950">
 
-        <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8 lg:py-40">
-            <div class="mx-auto max-w-2xl text-center">
-                <h1 class="text-4xl font-bold tracking-tight text-white sm:text-6xl">
-                    Employee Scheduling Made Simple
-                </h1>
-                <p class="mt-6 text-lg leading-8 text-indigo-100">
-                    Streamline your shift management with ShiftSync. Create schedules, manage time-off requests,
-                    and keep your team informed with real-time notifications - all in one intuitive platform.
-                </p>
-                <div class="mt-10 flex items-center justify-center gap-x-6">
-                    <a href="{% url 'login' %}" class="rounded-lg bg-white px-5 py-3 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-all duration-200 hover:shadow-lg">
-                        Get Started
-                    </a>
-                    <a href="#features" class="text-sm font-semibold leading-6 text-white hover:text-indigo-200 transition-colors duration-200">
-                        Learn more <span aria-hidden="true">&darr;</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Wave divider -->
-        <div class="absolute bottom-0 left-0 right-0">
-            <svg class="w-full h-16 sm:h-24 text-gray-50 dark:text-gray-900" viewBox="0 0 1440 74" fill="currentColor" preserveAspectRatio="none">
-                <path d="M0,0 C280,74 560,74 720,37 C880,0 1160,0 1440,37 L1440,74 L0,74 Z"></path>
-            </svg>
-        </div>
+    <!-- Grid pattern -->
+    <div class="absolute inset-0 -z-10 overflow-hidden">
+      <svg class="absolute left-[max(50%,25rem)] top-0 h-[64rem] w-[128rem] -translate-x-1/2
+                  stroke-white/10 [mask-image:radial-gradient(64rem_64rem_at_top,white,transparent)]"
+           aria-hidden="true">
+        <defs>
+          <pattern id="hero-pattern" width="200" height="200" x="50%" y="-1"
+                   patternUnits="userSpaceOnUse">
+            <path d="M100 200V.5M.5 .5H200" fill="none"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" stroke-width="0" fill="url(#hero-pattern)"/>
+      </svg>
     </div>
 
-    <!-- Features Section -->
-    <section id="features" class="bg-gray-50 dark:bg-gray-900 py-24 sm:py-32">
-        <div class="mx-auto max-w-7xl px-6 lg:px-8">
-            <div class="mx-auto max-w-2xl text-center">
-                <h2 class="text-base font-semibold leading-7 text-indigo-600 dark:text-indigo-400">Everything you need</h2>
-                <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-                    Powerful scheduling features
-                </p>
-                <p class="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-400">
-                    ShiftSync provides all the tools you need to efficiently manage employee schedules and keep your team organized.
-                </p>
-            </div>
+    <!-- Animated blob -->
+    <div class="absolute left-1/2 top-0 -z-10 -translate-x-1/2 blur-3xl xl:-top-6" aria-hidden="true">
+      <div class="hero-blob aspect-[1155/678] w-[72.1875rem] bg-gradient-to-tr from-purple-400 to-indigo-400 opacity-20"
+           style="clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)">
+      </div>
+    </div>
 
-            <div class="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-                <dl class="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-4">
-                    <!-- Feature 1: Calendar Dashboard -->
-                    <div class="flex flex-col items-start">
-                        <div class="rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10">
-                            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Calendar Dashboard</dt>
-                        <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
-                            View your entire team's schedule at a glance with intuitive week and month calendar views. Easily navigate between dates and see who's working when.
-                        </dd>
-                    </div>
+    <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8 lg:py-40">
+      <div class="mx-auto max-w-2xl text-center">
 
-                    <!-- Feature 2: Shift Management -->
-                    <div class="flex flex-col items-start">
-                        <div class="rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10">
-                            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                            </svg>
-                        </div>
-                        <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Shift Management</dt>
-                        <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
-                            Create, edit, and publish shifts with just a few clicks. Assign employees to shifts, set departments, and notify your team instantly when schedules are ready.
-                        </dd>
-                    </div>
-
-                    <!-- Feature 3: Day-Off Requests -->
-                    <div class="flex flex-col items-start">
-                        <div class="rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10">
-                            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                            </svg>
-                        </div>
-                        <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Day-Off Requests</dt>
-                        <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
-                            Employees can submit time-off requests directly through the app. Managers receive instant notifications and can approve or deny with a single click.
-                        </dd>
-                    </div>
-
-                    <!-- Feature 4: Real-Time Notifications -->
-                    <div class="flex flex-col items-start">
-                        <div class="rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10">
-                            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                            </svg>
-                        </div>
-                        <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Real-Time Notifications</dt>
-                        <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
-                            Stay informed with instant in-app and email notifications. Get alerts when shifts are assigned, schedules are published, or requests are processed.
-                        </dd>
-                    </div>
-                </dl>
-            </div>
+        <!-- Eyebrow badge -->
+        <div class="hero-anim-1 mb-6 flex justify-center">
+          <span class="inline-flex items-center gap-2 rounded-full border border-white/20
+                       bg-white/10 px-4 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+            Scheduling, simplified
+          </span>
         </div>
-    </section>
 
-    <!-- CTA Section -->
-    <section class="bg-white dark:bg-gray-800">
-        <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
-            <div class="mx-auto max-w-2xl text-center">
-                <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-                    Ready to get started?
-                </h2>
-                <p class="mx-auto mt-6 max-w-xl text-lg leading-8 text-gray-600 dark:text-gray-400">
-                    Join teams who trust ShiftSync to manage their employee schedules efficiently and keep everyone on the same page.
-                </p>
-                <div class="mt-10 flex items-center justify-center gap-x-6">
-                    <a href="{% url 'login' %}" class="rounded-lg bg-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-all duration-200 hover:shadow-lg">
-                        Sign In
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
+        <h1 class="hero-anim-2 hero-title text-4xl font-bold tracking-tight text-white sm:text-6xl">
+          Employee Scheduling<br>
+          Made <em>Simple</em>
+        </h1>
 
-    <!-- Footer -->
-    <footer class="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
-        <div class="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-            <div class="flex flex-col items-center justify-between gap-6 sm:flex-row">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                    </div>
-                    <span class="text-lg font-semibold text-gray-900 dark:text-white">ShiftSync</span>
-                </div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    &copy; {% now "Y" %} ShiftSync. Built with Django, HTMX &amp; Tailwind CSS.
-                </p>
-            </div>
+        <p class="hero-anim-3 mt-6 text-lg leading-8 text-indigo-100">
+          Streamline your shift management with ShiftSync. Create schedules, manage time-off requests,
+          and keep your team informed with real-time notifications — all in one intuitive platform.
+        </p>
+
+        <div class="hero-anim-3 mt-10 flex items-center justify-center gap-x-6">
+          <a href="{% url 'login' %}"
+             class="btn-shimmer rounded-lg bg-white px-5 py-3 text-sm font-semibold text-indigo-600
+                    shadow-sm hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2
+                    focus-visible:outline-offset-2 focus-visible:outline-white
+                    transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5">
+            Get Started
+          </a>
+          <a href="#features"
+             class="scroll-indicator text-sm font-semibold leading-6 text-white
+                    hover:text-indigo-200 transition-colors duration-200">
+            Learn more <span aria-hidden="true">&darr;</span>
+          </a>
         </div>
-    </footer>
-</div>
+      </div>
+    </div>
+
+    <!-- Shimmer divider above wave -->
+    <div class="hero-anim-4 pb-6">
+      <div class="shimmer-line"></div>
+    </div>
+
+    <!-- Wave divider -->
+    <div class="absolute bottom-0 left-0 right-0">
+      <svg class="wave-svg w-full h-16 sm:h-24 text-gray-50 dark:text-gray-900"
+           viewBox="0 0 1440 74" fill="currentColor" preserveAspectRatio="none">
+        <path d="M0,0 C280,74 560,74 720,37 C880,0 1160,0 1440,37 L1440,74 L0,74 Z"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ── Features ── -->
+  <section id="features" class="bg-gray-50 dark:bg-gray-900 py-24 sm:py-32">
+    <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+      <div class="mx-auto max-w-2xl text-center">
+        <h2 class="sr text-base font-semibold leading-7 text-indigo-600 dark:text-indigo-400">
+          Everything you need
+        </h2>
+        <p class="sr sr-d1 mt-2 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+          <span class="section-accent">Powerful</span> scheduling features
+        </p>
+        <p class="sr sr-d2 mt-6 text-lg leading-8 text-gray-600 dark:text-gray-400">
+          ShiftSync provides all the tools you need to efficiently manage employee schedules
+          and keep your team organized.
+        </p>
+      </div>
+
+      <div class="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
+        <dl class="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-4">
+
+          <!-- Feature 1 -->
+          <div class="sr sr-d1 flex flex-col items-start">
+            <div class="feature-card w-full">
+              <div class="feature-icon rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10 w-fit">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+              <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Calendar Dashboard</dt>
+              <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
+                View your entire team's schedule at a glance with intuitive week and month calendar
+                views. Easily navigate between dates and see who's working when.
+              </dd>
+            </div>
+          </div>
+
+          <!-- Feature 2 -->
+          <div class="sr sr-d2 flex flex-col items-start">
+            <div class="feature-card w-full">
+              <div class="feature-icon rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10 w-fit">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+              </div>
+              <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Shift Management</dt>
+              <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
+                Create, edit, and publish shifts with just a few clicks. Assign employees to shifts,
+                set departments, and notify your team instantly when schedules are ready.
+              </dd>
+            </div>
+          </div>
+
+          <!-- Feature 3 -->
+          <div class="sr sr-d3 flex flex-col items-start">
+            <div class="feature-card w-full">
+              <div class="feature-icon rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10 w-fit">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+              </div>
+              <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Day-Off Requests</dt>
+              <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
+                Employees can submit time-off requests directly through the app. Managers receive
+                instant notifications and can approve or deny with a single click.
+              </dd>
+            </div>
+          </div>
+
+          <!-- Feature 4 -->
+          <div class="sr sr-d4 flex flex-col items-start">
+            <div class="feature-card w-full">
+              <div class="feature-icon rounded-lg bg-indigo-500 p-3 ring-1 ring-indigo-500/10 w-fit">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+              </div>
+              <dt class="mt-4 font-semibold text-gray-900 dark:text-white">Real-Time Notifications</dt>
+              <dd class="mt-2 leading-7 text-gray-600 dark:text-gray-400">
+                Stay informed with instant in-app and email notifications. Get alerts when shifts
+                are assigned, schedules are published, or requests are processed.
+              </dd>
+            </div>
+          </div>
+
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA ── -->
+  <section class="bg-white dark:bg-gray-800">
+    <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
+      <div class="mx-auto max-w-2xl text-center">
+        <h2 class="sr text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+          Ready to get started?
+        </h2>
+        <p class="sr sr-d1 mx-auto mt-6 max-w-xl text-lg leading-8 text-gray-600 dark:text-gray-400">
+          Join teams who trust ShiftSync to manage their employee schedules efficiently
+          and keep everyone on the same page.
+        </p>
+        <div class="sr sr-d2 mt-10 flex items-center justify-center gap-x-6">
+          <a href="{% url 'login' %}"
+             class="btn-shimmer rounded-lg bg-indigo-500 px-5 py-3 text-sm font-semibold text-white
+                    shadow-sm hover:bg-indigo-600 focus-visible:outline focus-visible:outline-2
+                    focus-visible:outline-offset-2 focus-visible:outline-indigo-500
+                    transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+            Sign In
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer class="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+    <div class="mx-auto max-w-7xl px-6 py-12 lg:px-8">
+      <div class="flex flex-col items-center justify-between gap-6 sm:flex-row">
+        <a href="{% url 'landing' %}" class="footer-brand flex items-center space-x-2">
+          <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center
+                      transition-transform duration-300 hover:rotate-6">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <span class="text-lg font-semibold text-gray-900 dark:text-white">ShiftSync</span>
+        </a>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          &copy; {% now "Y" %} ShiftSync. Built with Django, HTMX &amp; Tailwind CSS.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /min-h-full -->
+
+<script>
+  // ── Nav: shrink + frosted glass on scroll
+  const nav = document.getElementById('main-nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 48);
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // ── Scroll reveal via IntersectionObserver
+  const srEls = document.querySelectorAll('.sr');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        // also trigger section-accent underline
+        const accent = e.target.querySelector?.('.section-accent');
+        if (accent) accent.classList.add('visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  srEls.forEach(el => io.observe(el));
+
+  // ── section-accent underline: observe the heading directly too
+  document.querySelectorAll('.section-accent').forEach(el => {
+    const parentSr = el.closest('.sr');
+    if (!parentSr) {
+      const ao = new IntersectionObserver(([e]) => {
+        if (e.isIntersecting) { el.classList.add('visible'); ao.disconnect(); }
+      }, { threshold: 0.3 });
+      ao.observe(el);
+    }
+  });
+</script>
 {% endblock %}
