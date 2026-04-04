@@ -1,0 +1,67 @@
+{% comment %}
+Clock in/out button partial for shifts.
+
+Only displays for shift owner on today's shifts.
+Shows "Clock In" button (green) if not clocked in.
+Shows "Clock Out" button (red) with duration if clocked in.
+
+Context Variables:
+    shift: The Shift object.
+    today: Today's date for comparison.
+{% endcomment %}
+
+{% load tz %}
+
+<div id="clock-button-{{ shift.id }}" class="clock-button-container">
+    {% if shift.date == today and shift.employee == request.user %}
+        {% if shift.active_time_entry %}
+            <!-- Currently clocked in - show Clock Out button -->
+            <div class="flex flex-col items-end space-y-1">
+                <button hx-post="{% url 'scheduling:clock_out' pk=shift.pk %}"
+                        hx-target="#clock-button-{{ shift.id }}"
+                        hx-swap="outerHTML"
+                        @click.stop
+                        class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium
+                               bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300
+                               hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                        title="Clock out of this shift">
+                    <!-- Clock icon -->
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Clock Out
+                </button>
+                <!-- Show time clocked in -->
+                <span class="text-xs text-gray-500 dark:text-gray-400"
+                      title="Clocked in at {{ shift.active_time_entry.clock_in|time:'g:i A' }}">
+                    Since {{ shift.active_time_entry.clock_in|time:"g:i A" }}
+                </span>
+            </div>
+        {% else %}
+            <!-- Not clocked in - show Clock In button -->
+            <button hx-post="{% url 'scheduling:clock_in' pk=shift.pk %}"
+                    hx-target="#clock-button-{{ shift.id }}"
+                    hx-swap="outerHTML"
+                    @click.stop
+                    class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium
+                           bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300
+                           hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                    title="Clock in to this shift">
+                <!-- Clock icon -->
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Clock In
+            </button>
+        {% endif %}
+
+        {% if shift.actual_hours > 0 %}
+            <!-- Show total actual hours worked if any completed entries exist -->
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Worked: {{ shift.actual_hours }}h / {{ shift.scheduled_hours }}h
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

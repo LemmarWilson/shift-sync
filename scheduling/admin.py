@@ -9,7 +9,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
 
-from .models import DayOffRequest, Department, Notification, Shift, User
+from .models import DayOffRequest, Department, Notification, Shift, TimeEntry, User
 
 
 @admin.register(User)
@@ -149,6 +149,43 @@ class ShiftAdmin(admin.ModelAdmin):
         """Mark selected shifts as unpublished."""
         count = queryset.update(published=False)
         self.message_user(request, f'{count} shift(s) unpublished successfully.')
+
+
+@admin.register(TimeEntry)
+class TimeEntryAdmin(admin.ModelAdmin):
+    """Admin interface for the TimeEntry model."""
+
+    list_display = [
+        'employee',
+        'shift',
+        'clock_in',
+        'clock_out',
+        'get_duration',
+        'notes',
+        'updated_at',
+    ]
+    list_filter = [
+        'clock_in',
+        'employee',
+        'shift__department',
+    ]
+    search_fields = [
+        'employee__username',
+        'employee__first_name',
+        'employee__last_name',
+        'notes',
+    ]
+    raw_id_fields = ['shift', 'employee']
+    readonly_fields = ['created_at', 'updated_at']
+    date_hierarchy = 'clock_in'
+    ordering = ['-clock_in']
+
+    @admin.display(description='Duration')
+    def get_duration(self, obj: TimeEntry) -> str:
+        """Display the duration of the time entry."""
+        if obj.duration_hours is not None:
+            return f"{obj.duration_hours}h"
+        return "In Progress"
 
 
 @admin.register(DayOffRequest)

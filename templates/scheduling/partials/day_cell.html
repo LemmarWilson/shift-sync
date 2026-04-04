@@ -19,7 +19,7 @@
     <div id="day-{{ day_date|date:'Y-m-d' }}-shifts" class="relative space-y-2">
         {% with day_shifts=shifts_by_date|get_item:day_date %}
             {% for shift in day_shifts %}
-                {% include 'scheduling/partials/shift_card.html' with shift=shift %}
+                {% include 'scheduling/partials/shift_card.html' with shift=shift today=today %}
             {% endfor %}
         {% endwith %}
     </div>
