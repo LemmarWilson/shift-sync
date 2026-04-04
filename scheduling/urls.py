@@ -197,4 +197,16 @@ urlpatterns = [
         views.PasswordChangeView.as_view(),
         name='password_change',
     ),
+
+    # Hours Dashboard endpoints
+    path(
+        'hours/',
+        views.HoursDashboardView.as_view(),
+        name='hours_dashboard',
+    ),
+    path(
+        'hours/<str:date_str>/',
+        views.HoursDashboardView.as_view(),
+        name='hours_dashboard_date',
+    ),
 ]

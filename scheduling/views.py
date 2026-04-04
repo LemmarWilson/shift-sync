@@ -42,7 +42,7 @@ class LandingView(View):
 from .forms import DayOffRequestForm, PasswordChangeForm, ShiftForm, UserProfileForm
 from .mixins import ManagerRequiredMixin
 from .models import DayOffRequest, Department, Notification, Shift, TimeEntry, User
-from .services import CalendarService, EmailService, NotificationService
+from .services import CalendarService, EmailService, HoursService, NotificationService
 
 
 class CalendarView(LoginRequiredMixin, TemplateView):
@@ -1547,3 +1547,101 @@ class ClockOutView(LoginRequiredMixin, View):
         )
         response['HX-Trigger'] = 'clockedOut'
         return response
+
+
+# =============================================================================
+# Hours Dashboard Views
+# =============================================================================
+
+
+class HoursDashboardView(LoginRequiredMixin, TemplateView):
+    """
+    Display hours worked dashboard with scheduled vs actual hours.
+
+    For employees: Shows their own hours for the week with daily breakdown.
+    For managers: Shows all employees' hours with aggregate totals.
+
+    Supports week navigation via URL parameter for viewing past/future weeks.
+
+    URL Parameters:
+        date_str (str, optional): Date in YYYY-MM-DD format to determine the week.
+            Defaults to today's date if not provided or invalid.
+
+    Context Variables:
+        week_start: Monday of the displayed week.
+        week_end: Sunday of the displayed week.
+        prev_week: ISO date string for navigating to the previous week.
+        next_week: ISO date string for navigating to the next week.
+        is_manager: Boolean indicating if current user is a manager.
+
+    For Employees:
+        weekly_hours: Dictionary with daily breakdown and totals.
+
+    For Managers:
+        employee_hours: List of employee hour summaries.
+        grand_total_scheduled: Total scheduled hours across all employees.
+        grand_total_actual: Total actual hours across all employees.
+        grand_total_variance: Overall variance (actual - scheduled).
+    """
+
+    template_name = 'scheduling/hours_dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        """
+        Build the context dictionary for the hours dashboard template.
+
+        Parses the date_str from URL kwargs, calculates week boundaries,
+        and retrieves appropriate hours data based on user role.
+        """
+        context = super().get_context_data(**kwargs)
+
+        # Parse target date from URL or use today as default
+        target_date = self._parse_target_date()
+
+        # Calculate week boundaries
+        week_start, week_end = HoursService.get_week_range(target_date)
+
+        # Base context for navigation
+        context['week_start'] = week_start
+        context['week_end'] = week_end
+        context['prev_week'] = (week_start - timedelta(days=7)).strftime('%Y-%m-%d')
+        context['next_week'] = (week_start + timedelta(days=7)).strftime('%Y-%m-%d')
+        context['is_manager'] = self.request.user.is_manager
+        context['today'] = date.today()
+
+        if self.request.user.is_manager:
+            # Manager view: aggregate hours for all employees
+            context['employee_hours'] = HoursService.get_all_employees_weekly_hours(week_start)
+
+            # Calculate grand totals across all employees
+            context['grand_total_scheduled'] = sum(
+                e['scheduled'] for e in context['employee_hours']
+            )
+            context['grand_total_actual'] = sum(
+                e['actual'] for e in context['employee_hours']
+            )
+            context['grand_total_variance'] = round(
+                context['grand_total_actual'] - context['grand_total_scheduled'], 2
+            )
+        else:
+            # Employee view: own hours with daily breakdown
+            context['weekly_hours'] = HoursService.get_user_weekly_hours(
+                self.request.user, week_start
+            )
+
+        return context
+
+    def _parse_target_date(self) -> date:
+        """
+        Parse the date_str from URL kwargs.
+
+        Returns:
+            The parsed date, or today's date if parsing fails or no date provided.
+        """
+        date_str = self.kwargs.get('date_str')
+        if date_str:
+            try:
+                return datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        return date.today()
