@@ -86,6 +86,13 @@ urlpatterns = [
         name='clock_out',
     ),
 
+    # Time Entry Edit endpoint
+    path(
+        'time-entries/<int:pk>/edit/',
+        views.TimeEntryEditView.as_view(),
+        name='time_entry_edit',
+    ),
+
     # Shift Publishing endpoints
     path(
         'shifts/publish/confirm/',

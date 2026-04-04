@@ -11,7 +11,7 @@ from datetime import date
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import DayOffRequest, Shift, User
+from .models import DayOffRequest, Shift, TimeEntry, User
 
 
 class ShiftForm(forms.ModelForm):
@@ -290,3 +290,39 @@ class PasswordChangeForm(forms.Form):
                 raise ValidationError('New passwords do not match.')
 
         return cleaned_data
+
+
+class TimeEntryForm(forms.ModelForm):
+    """Form for managers to edit time entries."""
+
+    clock_in = forms.DateTimeField(
+        widget=forms.DateTimeInput(
+            attrs={
+                'type': 'datetime-local',
+                'class': 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white',
+            }
+        )
+    )
+    clock_out = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={
+                'type': 'datetime-local',
+                'class': 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white',
+            }
+        )
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                'rows': 2,
+                'class': 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white',
+                'placeholder': 'Adjustment notes (optional)...',
+            }
+        )
+    )
+
+    class Meta:
+        model = TimeEntry
+        fields = ['clock_in', 'clock_out', 'notes']

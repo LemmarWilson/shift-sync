@@ -39,7 +39,7 @@ class LandingView(View):
             return redirect('scheduling:calendar')
         return render(request, 'landing.html')
 
-from .forms import DayOffRequestForm, PasswordChangeForm, ShiftForm, UserProfileForm
+from .forms import DayOffRequestForm, PasswordChangeForm, ShiftForm, TimeEntryForm, UserProfileForm
 from .mixins import ManagerRequiredMixin
 from .models import DayOffRequest, Department, Notification, Shift, TimeEntry, User
 from .services import CalendarService, EmailService, HoursService, NotificationService
@@ -464,6 +464,7 @@ class ShiftDetailView(LoginRequiredMixin, DetailView):
         context['is_manager'] = user.is_manager
         context['is_own_shift'] = (shift.employee_id == user.id)
         context['can_view_full_details'] = user.is_manager or context['is_own_shift']
+        context['today'] = date.today()
         return context
 
 
@@ -1490,10 +1491,16 @@ class ClockInView(LoginRequiredMixin, View):
             clock_in=timezone.now()
         )
 
-        # Return updated clock button partial
+        # Determine which partial to return based on HTMX target
+        hx_target = request.headers.get('HX-Target', '')
+        if 'modal-clock-button' in hx_target:
+            template = 'scheduling/partials/modal_clock_button.html'
+        else:
+            template = 'scheduling/partials/clock_button.html'
+
         response = render(
             request,
-            'scheduling/partials/clock_button.html',
+            template,
             {'shift': shift, 'today': date.today()}
         )
         response['HX-Trigger'] = 'clockedIn'
@@ -1539,10 +1546,16 @@ class ClockOutView(LoginRequiredMixin, View):
         entry.clock_out = timezone.now()
         entry.save()
 
-        # Return updated clock button partial
+        # Determine which partial to return based on HTMX target
+        hx_target = request.headers.get('HX-Target', '')
+        if 'modal-clock-button' in hx_target:
+            template = 'scheduling/partials/modal_clock_button.html'
+        else:
+            template = 'scheduling/partials/clock_button.html'
+
         response = render(
             request,
-            'scheduling/partials/clock_button.html',
+            template,
             {'shift': shift, 'today': date.today()}
         )
         response['HX-Trigger'] = 'clockedOut'
@@ -1645,3 +1658,57 @@ class HoursDashboardView(LoginRequiredMixin, TemplateView):
             except ValueError:
                 pass
         return date.today()
+
+
+class TimeEntryEditView(ManagerRequiredMixin, UpdateView):
+    """
+    View for managers to edit time entries.
+
+    Allows managers to adjust clock in/out times and add notes
+    for time entry corrections or adjustments.
+
+    Attributes:
+        model: TimeEntry model.
+        form_class: TimeEntryForm for validation.
+        template_name: Modal template for time entry editing.
+
+    HTMX Response:
+        On success, returns success state with HX-Trigger headers
+        for timeEntryUpdated and closeModal events.
+    """
+
+    model = TimeEntry
+    form_class = TimeEntryForm
+    template_name = 'modals/time_entry_edit.html'
+
+    def get_context_data(self, **kwargs):
+        """Add the time entry to context."""
+        context = super().get_context_data(**kwargs)
+        context['entry'] = self.object
+        return context
+
+    def form_valid(self, form):
+        """
+        Handle valid form submission.
+
+        Saves the updated time entry and returns a success response
+        with appropriate HTMX triggers for UI updates.
+        """
+        form.save()
+        response = render(
+            self.request,
+            'modals/success_state.html',
+            {'message': 'Time entry updated successfully'}
+        )
+        response['HX-Trigger'] = 'timeEntryUpdated, closeModal'
+        return response
+
+    def form_invalid(self, form):
+        """Handle invalid form submission - re-render edit modal with errors."""
+        context = self.get_context_data(form=form)
+        html = render_to_string(
+            'modals/time_entry_edit.html',
+            context,
+            request=self.request
+        )
+        return HttpResponse(html)
