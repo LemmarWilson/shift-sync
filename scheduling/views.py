@@ -41,7 +41,7 @@ class LandingView(View):
 
 from .forms import DayOffRequestForm, PasswordChangeForm, ShiftForm, UserProfileForm
 from .mixins import ManagerRequiredMixin
-from .models import DayOffRequest, Department, Notification, Shift, User
+from .models import DayOffRequest, Department, Notification, Shift, TimeEntry, User
 from .services import CalendarService, EmailService, NotificationService
 
 
@@ -749,7 +749,7 @@ class ShiftPublishToggleView(ManagerRequiredMixin, View):
 
         html = render_to_string(
             'scheduling/partials/shift_card.html',
-            {'shift': shift, 'is_manager': request.user.is_manager},
+            {'shift': shift, 'is_manager': request.user.is_manager, 'today': date.today()},
             request=request
         )
 
@@ -1442,3 +1442,108 @@ class PasswordChangeView(LoginRequiredMixin, View):
             request=request
         )
         return HttpResponse(html)
+
+
+# =============================================================================
+# Time Entry / Clock In-Out Views
+# =============================================================================
+
+
+class ClockInView(LoginRequiredMixin, View):
+    """
+    Clock in for a shift.
+
+    Creates a new TimeEntry with the current time as clock_in.
+    Only the shift owner can clock in, and only if not already clocked in.
+
+    URL Parameters:
+        pk (int): Primary key of the shift to clock in to.
+
+    HTMX Response:
+        Returns the updated clock button partial with HX-Trigger
+        containing 'clockedIn' event for frontend updates.
+    """
+
+    def post(self, request, pk):
+        """
+        Handle POST request to clock in.
+
+        Validates that the user owns the shift and isn't already clocked in,
+        then creates a TimeEntry and returns the updated clock button.
+        """
+        from django.http import HttpResponseBadRequest, HttpResponseForbidden
+
+        shift = get_object_or_404(Shift, pk=pk)
+
+        # Verify user owns this shift
+        if shift.employee != request.user:
+            return HttpResponseForbidden("You can only clock in to your own shifts.")
+
+        # Check if already clocked in
+        if shift.active_time_entry:
+            return HttpResponseBadRequest("Already clocked in to this shift.")
+
+        # Create time entry
+        TimeEntry.objects.create(
+            shift=shift,
+            employee=request.user,
+            clock_in=timezone.now()
+        )
+
+        # Return updated clock button partial
+        response = render(
+            request,
+            'scheduling/partials/clock_button.html',
+            {'shift': shift, 'today': date.today()}
+        )
+        response['HX-Trigger'] = 'clockedIn'
+        return response
+
+
+class ClockOutView(LoginRequiredMixin, View):
+    """
+    Clock out from a shift.
+
+    Updates the active TimeEntry with the current time as clock_out.
+    Only the shift owner can clock out, and only if currently clocked in.
+
+    URL Parameters:
+        pk (int): Primary key of the shift to clock out from.
+
+    HTMX Response:
+        Returns the updated clock button partial with HX-Trigger
+        containing 'clockedOut' event for frontend updates.
+    """
+
+    def post(self, request, pk):
+        """
+        Handle POST request to clock out.
+
+        Validates that the user owns the shift and is clocked in,
+        then updates the TimeEntry and returns the updated clock button.
+        """
+        from django.http import HttpResponseBadRequest, HttpResponseForbidden
+
+        shift = get_object_or_404(Shift, pk=pk)
+
+        # Verify user owns this shift
+        if shift.employee != request.user:
+            return HttpResponseForbidden("You can only clock out of your own shifts.")
+
+        # Get active time entry
+        entry = shift.active_time_entry
+        if not entry:
+            return HttpResponseBadRequest("Not clocked in to this shift.")
+
+        # Update clock out time
+        entry.clock_out = timezone.now()
+        entry.save()
+
+        # Return updated clock button partial
+        response = render(
+            request,
+            'scheduling/partials/clock_button.html',
+            {'shift': shift, 'today': date.today()}
+        )
+        response['HX-Trigger'] = 'clockedOut'
+        return response

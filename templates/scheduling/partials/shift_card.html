@@ -64,4 +64,11 @@
         </button>
         {% endif %}
     </div>
+
+    <!-- Clock In/Out Button (for shift owner on today's shifts) -->
+    {% if shift.date == today and shift.employee == request.user %}
+    <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+        {% include 'scheduling/partials/clock_button.html' with shift=shift today=today %}
+    </div>
+    {% endif %}
 </div>

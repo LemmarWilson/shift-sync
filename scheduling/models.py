@@ -192,6 +192,44 @@ class Shift(models.Model):
         verbose_name = 'Shift'
         verbose_name_plural = 'Shifts'
 
+    @property
+    def scheduled_hours(self) -> float:
+        """
+        Calculate scheduled hours from start_time and end_time.
+
+        Returns:
+            The scheduled duration in hours (rounded to 2 decimal places).
+        """
+        from datetime import datetime
+
+        start = datetime.combine(self.date, self.start_time)
+        end = datetime.combine(self.date, self.end_time)
+        return round((end - start).total_seconds() / 3600, 2)
+
+    @property
+    def actual_hours(self) -> float:
+        """
+        Get total actual hours from completed time entries.
+
+        Returns:
+            The sum of all completed time entry durations (rounded to 2 decimal places).
+        """
+        total = 0
+        for entry in self.time_entries.filter(clock_out__isnull=False):
+            if entry.duration_hours:
+                total += entry.duration_hours
+        return round(total, 2)
+
+    @property
+    def active_time_entry(self):
+        """
+        Get the current active (clocked in) time entry if any.
+
+        Returns:
+            The active TimeEntry instance, or None if not currently clocked in.
+        """
+        return self.time_entries.filter(clock_out__isnull=True).first()
+
     def __str__(self) -> str:
         """Return a human-readable representation of the shift."""
         return f"{self.employee} - {self.date} ({self.start_time}-{self.end_time})"
@@ -266,6 +304,73 @@ class DayOffRequest(models.Model):
     def __str__(self) -> str:
         """Return a human-readable representation of the request."""
         return f"{self.employee} - {self.start_date} to {self.end_date} ({self.get_status_display()})"
+
+
+class TimeEntry(models.Model):
+    """
+    Time entry model for tracking actual clock in/out times.
+
+    Represents an employee's actual work time for a specific shift,
+    allowing comparison between scheduled and actual hours worked.
+    """
+
+    shift = models.ForeignKey(
+        'Shift',
+        on_delete=models.CASCADE,
+        related_name='time_entries',
+        help_text='The shift this time entry is associated with.',
+    )
+    employee = models.ForeignKey(
+        'User',
+        on_delete=models.CASCADE,
+        related_name='time_entries',
+        help_text='The employee who clocked in/out.',
+    )
+    clock_in = models.DateTimeField(
+        help_text='When the employee clocked in.',
+    )
+    clock_out = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the employee clocked out (null if still clocked in).',
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text='Manager adjustment notes or comments.',
+    )
+
+    # Auto timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-clock_in']
+        verbose_name = 'Time Entry'
+        verbose_name_plural = 'Time Entries'
+
+    @property
+    def duration_hours(self) -> float | None:
+        """
+        Calculate actual hours worked.
+
+        Returns:
+            The duration in hours (rounded to 2 decimal places),
+            or None if still clocked in.
+        """
+        if self.clock_out:
+            delta = self.clock_out - self.clock_in
+            return round(delta.total_seconds() / 3600, 2)
+        return None
+
+    @property
+    def is_clocked_in(self) -> bool:
+        """Check if currently clocked in (no clock_out time)."""
+        return self.clock_out is None
+
+    def __str__(self) -> str:
+        """Return a human-readable representation of the time entry."""
+        status = "In Progress" if self.is_clocked_in else f"{self.duration_hours}h"
+        return f"{self.employee} - {self.clock_in.date()} ({status})"
 
 
 class Notification(models.Model):

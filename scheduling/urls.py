@@ -74,6 +74,18 @@ urlpatterns = [
         name='shift_form_partial',
     ),
 
+    # Time Entry / Clock In-Out endpoints
+    path(
+        'shifts/<int:pk>/clock-in/',
+        views.ClockInView.as_view(),
+        name='clock_in',
+    ),
+    path(
+        'shifts/<int:pk>/clock-out/',
+        views.ClockOutView.as_view(),
+        name='clock_out',
+    ),
+
     # Shift Publishing endpoints
     path(
         'shifts/publish/confirm/',
