@@ -230,6 +230,11 @@ class Shift(models.Model):
         """
         return self.time_entries.filter(clock_out__isnull=True).first()
 
+    @property
+    def has_completed_time_entry(self) -> bool:
+        """Check if shift has any completed time entries (clock_out set)."""
+        return self.time_entries.filter(clock_out__isnull=False).exists()
+
     def __str__(self) -> str:
         """Return a human-readable representation of the shift."""
         return f"{self.employee} - {self.date} ({self.start_time}-{self.end_time})"
