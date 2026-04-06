@@ -216,4 +216,9 @@ urlpatterns = [
         views.HoursDashboardView.as_view(),
         name='hours_dashboard_date',
     ),
+    path(
+        'hours/employee/<int:employee_id>/<str:date_str>/',
+        views.EmployeeHoursDetailView.as_view(),
+        name='employee_hours_detail',
+    ),
 ]

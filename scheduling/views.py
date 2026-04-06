@@ -1484,6 +1484,10 @@ class ClockInView(LoginRequiredMixin, View):
         if shift.active_time_entry:
             return HttpResponseBadRequest("Already clocked in to this shift.")
 
+        # Check if shift already has a completed time entry (prevent multiple cycles)
+        if shift.has_completed_time_entry:
+            return HttpResponseBadRequest("You have already clocked in and out for this shift.")
+
         # Create time entry
         TimeEntry.objects.create(
             shift=shift,
@@ -1545,6 +1549,9 @@ class ClockOutView(LoginRequiredMixin, View):
         # Update clock out time
         entry.clock_out = timezone.now()
         entry.save()
+
+        # Refresh shift to clear cached related data
+        shift.refresh_from_db()
 
         # Determine which partial to return based on HTMX target
         hx_target = request.headers.get('HX-Target', '')
@@ -1712,3 +1719,91 @@ class TimeEntryEditView(ManagerRequiredMixin, UpdateView):
             request=self.request
         )
         return HttpResponse(html)
+
+
+class EmployeeHoursDetailView(ManagerRequiredMixin, TemplateView):
+    """
+    Detailed view of an employee's hours for a specific week.
+
+    Allows managers to see all shifts and time entries for an employee,
+    with the ability to edit individual time entries.
+
+    URL Parameters:
+        employee_id (int): The ID of the employee to view.
+        date_str (str): Date in YYYY-MM-DD format to determine the week.
+
+    Context Variables:
+        employee: The User instance being viewed.
+        week_start: Monday of the displayed week.
+        week_end: Sunday of the displayed week.
+        prev_week: ISO date string for navigating to the previous week.
+        next_week: ISO date string for navigating to the next week.
+        shifts: List of shifts for the employee in the week with time entries.
+        total_scheduled: Total scheduled hours for the week.
+        total_actual: Total actual hours worked for the week.
+        total_variance: Difference between actual and scheduled hours.
+    """
+
+    template_name = 'scheduling/employee_hours_detail.html'
+
+    def get_context_data(self, **kwargs):
+        """
+        Build the context dictionary for the employee hours detail template.
+
+        Retrieves the employee's shifts and time entries for the specified week.
+        """
+        context = super().get_context_data(**kwargs)
+
+        # Get the employee
+        employee_id = self.kwargs.get('employee_id')
+        employee = get_object_or_404(User, pk=employee_id)
+        context['employee'] = employee
+
+        # Parse target date from URL or use today as default
+        target_date = self._parse_target_date()
+
+        # Calculate week boundaries
+        week_start, week_end = HoursService.get_week_range(target_date)
+
+        context['week_start'] = week_start
+        context['week_end'] = week_end
+        context['prev_week'] = (week_start - timedelta(days=7)).strftime('%Y-%m-%d')
+        context['next_week'] = (week_start + timedelta(days=7)).strftime('%Y-%m-%d')
+        context['today'] = date.today()
+
+        # Get the employee's shifts for the week with time entries
+        shifts = Shift.objects.filter(
+            employee=employee,
+            date__gte=week_start,
+            date__lte=week_end
+        ).select_related('employee', 'department').prefetch_related('time_entries').order_by('date', 'start_time')
+
+        # Calculate totals
+        total_scheduled = 0
+        total_actual = 0
+
+        for shift in shifts:
+            total_scheduled += shift.scheduled_hours
+            total_actual += shift.actual_hours
+
+        context['shifts'] = shifts
+        context['total_scheduled'] = round(total_scheduled, 2)
+        context['total_actual'] = round(total_actual, 2)
+        context['total_variance'] = round(total_actual - total_scheduled, 2)
+
+        return context
+
+    def _parse_target_date(self) -> date:
+        """
+        Parse the date_str from URL kwargs.
+
+        Returns:
+            The parsed date, or today's date if parsing fails or no date provided.
+        """
+        date_str = self.kwargs.get('date_str')
+        if date_str:
+            try:
+                return datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        return date.today()

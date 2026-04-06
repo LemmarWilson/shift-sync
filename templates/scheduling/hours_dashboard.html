@@ -78,7 +78,8 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {% for emp_hours in employee_hours %}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer"
+                        onclick="window.location.href='{% url 'scheduling:employee_hours_detail' emp_hours.employee.id week_start|date:'Y-m-d' %}'">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium" style="background-color: {{ emp_hours.employee.color }}">
